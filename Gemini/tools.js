@@ -16,7 +16,7 @@ async function ask(input, image, image2, model) {
 //#Summary=Gemini ask web
 //#Description=Sends a prompt with optional images to Gemini with Google Search grounding enabled.
 //#Variables=GEMINI_MODEL
-async function askWeb(input, image, image2, model) {
+async function ask_web(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callGemini({
 		prompt: args.prompt,
@@ -128,5 +128,6 @@ async function callGemini({
 
 module.exports = {
 	ask,
-	askWeb
+	ask_web
 };
+

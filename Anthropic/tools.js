@@ -16,7 +16,7 @@ async function ask(input, image, image2, model) {
 //#Summary=Anthropic ask web
 //#Description=Sends a prompt with optional images to Anthropic with web search enabled.
 //#Variables=ANTHROPIC_MODEL
-async function askWeb(input, image, image2, model) {
+async function ask_web(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callAnthropic({
 		prompt: args.prompt,
@@ -121,5 +121,6 @@ async function callAnthropic({
 
 module.exports = {
 	ask,
-	askWeb
+	ask_web
 };
+

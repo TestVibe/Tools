@@ -16,7 +16,7 @@ async function ask(input, image, image2, model) {
 //#Summary=OpenAI ask web
 //#Description=Sends a prompt with optional images to OpenAI with web search enabled.
 //#Variables=OPENAI_MODEL
-async function askWeb(input, image, image2, model) {
+async function ask_web(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callOpenAI({
 		prompt: args.prompt,
@@ -105,5 +105,6 @@ async function callOpenAI({
 
 module.exports = {
 	ask,
-	askWeb
+	ask_web
 };
+
