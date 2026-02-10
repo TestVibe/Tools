@@ -2,6 +2,7 @@
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 //#Summary=Anthropic ask
 //#Description=Sends a prompt with optional images to Anthropic and returns text output.
+//#Variables=ANTHROPIC_MODEL
 async function ask(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callAnthropic({
@@ -14,6 +15,7 @@ async function ask(input, image, image2, model) {
 
 //#Summary=Anthropic ask web
 //#Description=Sends a prompt with optional images to Anthropic with web search enabled.
+//#Variables=ANTHROPIC_MODEL
 async function askWeb(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callAnthropic({
@@ -63,7 +65,7 @@ async function callAnthropic({
 	prompt,
 	image,
 	image2,
-	model = "claude-sonnet-4-20250514",
+	model,
 	max_tokens = 1024,
 	tools
 }) {
@@ -71,6 +73,7 @@ async function callAnthropic({
 	if (!apiKey) {
 		throw new Error("Missing environment variable: ANTHROPIC_API_KEY");
 	}
+	const resolvedModel = model || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
 
 	const content = [];
 	if (image) content.push(toImageContent(image));
@@ -88,7 +91,7 @@ async function callAnthropic({
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			model,
+			model: resolvedModel,
 			max_tokens,
 			messages: [
 				{

@@ -2,6 +2,7 @@
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 //#Summary=OpenAI ask
 //#Description=Sends a prompt with optional images to OpenAI and returns text output.
+//#Variables=OPENAI_MODEL
 async function ask(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callOpenAI({
@@ -14,6 +15,7 @@ async function ask(input, image, image2, model) {
 
 //#Summary=OpenAI ask web
 //#Description=Sends a prompt with optional images to OpenAI with web search enabled.
+//#Variables=OPENAI_MODEL
 async function askWeb(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callOpenAI({
@@ -47,13 +49,14 @@ async function callOpenAI({
 	prompt,
 	image,
 	image2,
-	model = "gpt-4.1-mini",
+	model,
 	tools
 }) {
 	const apiKey = process.env.OPENAI_API_KEY;
 	if (!apiKey) {
 		throw new Error("Missing environment variable: OPENAI_API_KEY");
 	}
+	const resolvedModel = model || process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
 	const content = [{ type: "input_text", text: String(prompt || "") }];
 	if (image) {
@@ -70,7 +73,7 @@ async function callOpenAI({
 			"Authorization": `Bearer ${apiKey}`
 		},
 		body: JSON.stringify({
-			model,
+			model: resolvedModel,
 			input: [
 				{
 					role: "user",
