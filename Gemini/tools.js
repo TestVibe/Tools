@@ -16,6 +16,7 @@ async function ask(input, image, image2, model) {
 //#Summary=Gemini ask web
 //#Description=Sends a prompt with optional images to Gemini with Google Search grounding enabled.
 //#Variables=GEMINI_MODEL
+//#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
 async function ask_web(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callGemini({

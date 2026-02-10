@@ -16,6 +16,7 @@ async function ask(input, image, image2, model) {
 //#Summary=Anthropic ask web
 //#Description=Sends a prompt with optional images to Anthropic with web search enabled.
 //#Variables=ANTHROPIC_MODEL
+//#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 async function ask_web(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callAnthropic({

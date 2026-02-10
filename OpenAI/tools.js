@@ -16,6 +16,7 @@ async function ask(input, image, image2, model) {
 //#Summary=OpenAI ask web
 //#Description=Sends a prompt with optional images to OpenAI with web search enabled.
 //#Variables=OPENAI_MODEL
+//#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 async function ask_web(input, image, image2, model) {
 	const args = normalizeArgs(input, image, image2, model);
 	return callOpenAI({
