@@ -1,4 +1,4 @@
-async function sendMandrillEmail({
+async function send_email({
   fromEmail,
   toEmail,
   subject,
@@ -31,4 +31,4 @@ async function sendMandrillEmail({
   return response.json();
 }
 
-module.exports = sendMandrillEmail;
+module.exports = send_email;
