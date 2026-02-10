@@ -1,3 +1,5 @@
+//#Example=Create a new GitHub issue in acme/webapp with the title "Playwright Run" and label it "automation".
+//#Example=After creating the issue, append a comment that includes the latest run result summary.
 //#Summary=Create GitHub issue
 //#Description=Creates a new GitHub issue in a repository.
 async function create_issue({

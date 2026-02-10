@@ -1,3 +1,4 @@
+//#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
 async function send_email({
   fromEmail,
   toEmail,

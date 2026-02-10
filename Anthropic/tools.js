@@ -1,3 +1,5 @@
+//#Example=Ask Anthropic to review a screenshot and confirm whether the login page rendered correctly.
+//#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 //#Summary=Anthropic ask
 //#Description=Sends a prompt with optional images to Anthropic and returns text output.
 async function ask(input, image, image2, model) {

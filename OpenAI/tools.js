@@ -1,3 +1,5 @@
+//#Example=Ask OpenAI to summarize the current test failure in one sentence for the run report.
+//#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 //#Summary=OpenAI ask
 //#Description=Sends a prompt with optional images to OpenAI and returns text output.
 async function ask(input, image, image2, model) {
