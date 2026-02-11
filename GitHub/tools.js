@@ -2,6 +2,8 @@
 //#Example=After creating the issue, append a comment that includes the latest run result summary.
 //#Summary=Create GitHub issue
 //#Description=Creates a new GitHub issue in a repository.
+//#ReturnsType=object
+//#ReturnsValue={"id":12345,"number":42,"html_url":"https://github.com/owner/repo/issues/42"}
 async function create_issue({
   owner,
   repo,
@@ -39,6 +41,8 @@ async function create_issue({
 
 //#Summary=Append to GitHub issue
 //#Description=Adds a comment to an existing GitHub issue.
+//#ReturnsType=object
+//#ReturnsValue={"id":98765,"html_url":"https://github.com/owner/repo/issues/42#issuecomment-98765"}
 async function append_to_issue({
   owner,
   repo,

@@ -2,6 +2,8 @@
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 //#Summary=Anthropic ask
 //#Description=Sends a prompt with optional images to Anthropic and returns text output.
+//#ReturnsType=string
+//#ReturnsValue="Plain-text response from Anthropic"
 //#Variables=ANTHROPIC_MODEL
 async function ask(input, image, image2, model) {
 	const args = (input && typeof input === "object" && !Array.isArray(input))
@@ -71,6 +73,8 @@ async function ask(input, image, image2, model) {
 
 //#Summary=Anthropic ask web
 //#Description=Sends a prompt with optional images to Anthropic with web search enabled.
+//#ReturnsType=string
+//#ReturnsValue="Plain-text response from Anthropic with web results"
 //#Variables=ANTHROPIC_MODEL
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 async function ask_web(input, image, image2, model) {

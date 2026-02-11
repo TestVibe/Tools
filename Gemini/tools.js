@@ -2,6 +2,8 @@
 //#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
 //#Summary=Gemini ask
 //#Description=Sends a prompt with optional images to Gemini and returns text output.
+//#ReturnsType=string
+//#ReturnsValue="Plain-text response from Gemini"
 //#Variables=GEMINI_MODEL
 async function ask(input, image, image2, model) {
 	const args = (input && typeof input === "object" && !Array.isArray(input))
@@ -77,6 +79,8 @@ async function ask(input, image, image2, model) {
 
 //#Summary=Gemini ask web
 //#Description=Sends a prompt with optional images to Gemini with Google Search grounding enabled.
+//#ReturnsType=string
+//#ReturnsValue="Plain-text response from Gemini with grounded web context"
 //#Variables=GEMINI_MODEL
 //#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
 async function ask_web(input, image, image2, model) {

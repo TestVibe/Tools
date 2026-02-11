@@ -2,6 +2,8 @@
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 //#Summary=OpenAI ask
 //#Description=Sends a prompt with optional images to OpenAI and returns text output.
+//#ReturnsType=string
+//#ReturnsValue="Plain-text response from OpenAI"
 //#Variables=OPENAI_MODEL
 async function ask(input, image, image2, model) {
 	const args = (input && typeof input === "object" && !Array.isArray(input))
@@ -59,6 +61,8 @@ async function ask(input, image, image2, model) {
 
 //#Summary=OpenAI ask web
 //#Description=Sends a prompt with optional images to OpenAI with web search enabled.
+//#ReturnsType=string
+//#ReturnsValue="Plain-text response from OpenAI with web-grounded info"
 //#Variables=OPENAI_MODEL
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 async function ask_web(input, image, image2, model) {

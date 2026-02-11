@@ -1,4 +1,6 @@
 //#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
+//#ReturnsType=array
+//#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
 async function send_email({
   fromEmail,
   toEmail,
