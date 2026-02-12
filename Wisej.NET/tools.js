@@ -1,33 +1,3 @@
-const NAMESPACE = "__wisejNetTools";
-
-function getPage(args) {
-	const [first, second] = args;
-
-	if (first && typeof first.evaluate === "function") {
-		return { page: first, input: second ?? {} };
-	}
-
-	if (second && typeof second.evaluate === "function") {
-		return { page: second, input: first ?? {} };
-	}
-
-	throw new Error("Playwright page context was not provided.");
-}
-
-async function callBrowserHelper(args, toolName) {
-	const { page, input } = getPage(args);
-	return page.evaluate(
-		({ namespace, name, payload }) => {
-			const helpers = globalThis[namespace];
-			if (!helpers || typeof helpers[name] !== "function") {
-				throw new Error(`Browser helper not found: ${name}. Ensure init-script.js is loaded before tool calls.`);
-			}
-			return helpers[name](payload);
-		},
-		{ namespace: NAMESPACE, name: toolName, payload: input }
-	);
-}
-
 //#Example=Open ComboBox by id: { id: "luConfirmedFilter" }.
 //#Example=Open ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
 //#Summary=Open ComboBox
@@ -35,7 +5,25 @@ async function callBrowserHelper(args, toolName) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","opened":true}
 async function combobox_open(...args) {
-	return callBrowserHelper(args, "combobox_open");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_open !== "function") {
+				throw new Error("Browser helper not found: combobox_open. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_open(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Close ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -44,7 +32,25 @@ async function combobox_open(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","closed":true}
 async function combobox_close(...args) {
-	return callBrowserHelper(args, "combobox_close");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_close !== "function") {
+				throw new Error("Browser helper not found: combobox_close. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_close(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Set ComboBox value: { ariaLabel: "luConfirmedFilter", value: "Williamson, Ryan" }.
@@ -53,7 +59,25 @@ async function combobox_close(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
 async function combobox_set_value(...args) {
-	return callBrowserHelper(args, "combobox_set_value");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_set_value !== "function") {
+				throw new Error("Browser helper not found: combobox_set_value. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_set_value(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Get ComboBox value by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -62,7 +86,25 @@ async function combobox_set_value(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
 async function combobox_get_value(...args) {
-	return callBrowserHelper(args, "combobox_get_value");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_get_value !== "function") {
+				throw new Error("Browser helper not found: combobox_get_value. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_get_value(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Set selected index: { selector: "[aria-label=\"luConfirmedFilter\"]", index: 2 }.
@@ -71,7 +113,25 @@ async function combobox_get_value(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
 async function combobox_set_selected_index(...args) {
-	return callBrowserHelper(args, "combobox_set_selected_index");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_set_selected_index !== "function") {
+				throw new Error("Browser helper not found: combobox_set_selected_index. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_set_selected_index(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Get selected index by ariaLabel: { ariaLabel: "luConfirmedFilter" }.
@@ -80,7 +140,25 @@ async function combobox_set_selected_index(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
 async function combobox_get_selected_index(...args) {
-	return callBrowserHelper(args, "combobox_get_selected_index");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_get_selected_index !== "function") {
+				throw new Error("Browser helper not found: combobox_get_selected_index. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_get_selected_index(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Set text selection: { selector: "[aria-label=\"luConfirmedFilter\"]", start: 0, length: 5 }.
@@ -89,7 +167,25 @@ async function combobox_get_selected_index(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
 async function combobox_set_selection(...args) {
-	return callBrowserHelper(args, "combobox_set_selection");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_set_selection !== "function") {
+				throw new Error("Browser helper not found: combobox_set_selection. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_set_selection(payload);
+		},
+		{ payload: input }
+	);
 }
 
 //#Example=Get text selection by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -98,7 +194,25 @@ async function combobox_set_selection(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
 async function combobox_get_selection(...args) {
-	return callBrowserHelper(args, "combobox_get_selection");
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	if (!page) throw new Error("Playwright page context was not provided.");
+
+	return page.evaluate(
+		({ payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.combobox_get_selection !== "function") {
+				throw new Error("Browser helper not found: combobox_get_selection. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.combobox_get_selection(payload);
+		},
+		{ payload: input }
+	);
 }
 
 module.exports = {
