@@ -91,11 +91,6 @@
 	}
 
 	function selectorToComponentId(selector) {
-		const ariaMatch = selector.match(/\[aria-label\s*=\s*["']([^"']+)["']\]/i);
-		if (ariaMatch && ariaMatch[1]) {
-			return ariaMatch[1];
-		}
-
 		const doc = globalThis.document || globalThis.window?.document;
 		if (!doc || typeof doc.querySelector !== "function") {
 			return null;
