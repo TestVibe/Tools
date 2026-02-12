@@ -3,11 +3,11 @@
 
 	function resolveComboBox(input) {
 		const core = getWisejCore();
-		const id = resolveComponentId(input);
-		const combo = core.getComponent(id);
+		const target = resolveComponentId(input);
+		const combo = resolveComponent(core, target);
 
 		if (!combo) {
-			throw new Error(`Component not found: ${id}`);
+			throw new Error(`Component not found: ${target}`);
 		}
 
 		const className = String(combo.classname || combo.constructor?.classname || "");
@@ -18,10 +18,34 @@
 			&& typeof combo.setSelectedIndex === "function";
 
 		if (!looksLikeCombo && !hasComboApi) {
-			throw new Error(`Component ${id} is not a Wisej ComboBox.`);
+			throw new Error(`Component ${target} is not a Wisej ComboBox.`);
 		}
 
 		return combo;
+	}
+
+	function resolveComponent(core, target) {
+		// First, try direct Wisej component id lookup.
+		let component = core.getComponent(target);
+		if (component) return component;
+
+		// If direct lookup fails, treat target as an aria-label and resolve via DOM.
+		const ariaSelector = `[aria-label="${escapeAttribute(target)}"]`;
+		const fromAria = selectorToComponentId(ariaSelector);
+		if (fromAria) {
+			component = core.getComponent(fromAria);
+			if (component) return component;
+		}
+
+		// Finally, treat target as a raw id selector.
+		const idSelector = `#${escapeCssId(target)}`;
+		const fromIdSelector = selectorToComponentId(idSelector);
+		if (fromIdSelector) {
+			component = core.getComponent(fromIdSelector);
+			if (component) return component;
+		}
+
+		return null;
 	}
 
 	function resolveComponentId(input) {
@@ -82,24 +106,37 @@
 			return null;
 		}
 
-		const qxWidget = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement?.(el);
-		const directId = qxWidget?.getId?.();
-		if (directId) {
-			return directId;
-		}
-
+		// Prefer DOM ids from the matched element/ancestors; many Wisej controls
+		// can be resolved directly by those ids through Wisej.Core.getComponent.
 		let node = el;
 		while (node) {
 			if (typeof node.getAttribute === "function") {
 				const id = node.getAttribute("id");
-				if (id && /^id_\d+$/i.test(id)) {
+				if (id) {
 					return id;
 				}
 			}
 			node = node.parentElement;
 		}
 
+		const qxWidget = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement?.(el);
+		const directId = qxWidget?.getId?.();
+		if (directId) {
+			return directId;
+		}
+
 		return null;
+	}
+
+	function escapeAttribute(value) {
+		return String(value).replace(/["\\]/g, "\\$&");
+	}
+
+	function escapeCssId(value) {
+		if (typeof globalThis.CSS?.escape === "function") {
+			return globalThis.CSS.escape(String(value));
+		}
+		return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
 	}
 
 	function getWisejCore() {
