@@ -1,3 +1,5 @@
+//#PackageDescription=Jira provider tools for issue creation and issue updates.
+//#PackageVersion=1.0.0
 //#Example=Create a Jira issue in project QA with summary "Smoke run failed" and label "automation".
 //#Summary=Create Jira issue
 //#Description=Creates a Jira issue using Jira Cloud REST API v3.

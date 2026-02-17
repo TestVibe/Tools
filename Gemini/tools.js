@@ -1,3 +1,5 @@
+//#PackageDescription=Gemini provider tools for prompt and web-grounded responses.
+//#PackageVersion=1.0.0
 //#Example=Ask Gemini to summarize the latest failing test output in one sentence.
 //#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
 //#Summary=Gemini ask

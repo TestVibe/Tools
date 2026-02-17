@@ -1,3 +1,5 @@
+//#PackageDescription=OpenAI provider tools for prompt and web-grounded responses.
+//#PackageVersion=1.0.0
 //#Example=Ask OpenAI to summarize the current test failure in one sentence for the run report.
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 //#Summary=OpenAI ask

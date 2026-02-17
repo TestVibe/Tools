@@ -1,3 +1,5 @@
+//#PackageDescription=Slack provider tools for posting and updating channel messages.
+//#PackageVersion=1.0.0
 //#Example=Post a run summary to Slack channel C0123456789 using your bot token.
 //#Summary=Post Slack message
 //#Description=Posts a message to Slack using chat.postMessage.

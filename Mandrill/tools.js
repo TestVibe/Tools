@@ -1,3 +1,5 @@
+//#PackageDescription=Mandrill provider tools for transactional email delivery.
+//#PackageVersion=1.0.0
 //#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
 //#ReturnsType=array
 //#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]

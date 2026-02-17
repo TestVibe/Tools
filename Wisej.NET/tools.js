@@ -1,3 +1,5 @@
+//#PackageDescription=Wisej.NET provider tools for UI automation and interaction helpers.
+//#PackageVersion=1.0.0
 //#Example=Open ComboBox by id: { id: "luConfirmedFilter" }.
 //#Example=Open ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
 //#Summary=Open ComboBox

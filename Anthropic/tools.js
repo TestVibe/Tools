@@ -1,3 +1,5 @@
+//#PackageDescription=Anthropic provider tools for prompt and web-grounded responses.
+//#PackageVersion=1.0.0
 //#Example=Ask Anthropic to review a screenshot and confirm whether the login page rendered correctly.
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 //#Summary=Anthropic ask

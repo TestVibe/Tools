@@ -1,3 +1,5 @@
+//#PackageDescription=Twilio provider tools for SMS and messaging notifications.
+//#PackageVersion=1.0.0
 //#Example=Send an SMS alert to +15551234567 when a critical test run fails.
 //#Summary=Twilio send SMS
 //#Description=Sends an SMS/MMS message using Twilio Programmable Messaging.
