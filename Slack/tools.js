@@ -6,7 +6,7 @@
 //#ReturnsType=object
 //#ReturnsValue={"ok":true,"channel":"C0123456789","ts":"1710000000.000100"}
 //#Variables=SLACK_BOT_TOKEN
-async function post_message({
+async function postMessage({
   channel,
   text,
   blocks,
@@ -45,7 +45,7 @@ async function post_message({
 //#ReturnsType=object
 //#ReturnsValue={"ok":true,"channel":"C0123456789","ts":"1710000010.000200","thread_ts":"1710000000.000100"}
 //#Variables=SLACK_BOT_TOKEN
-async function post_thread_reply({
+async function postThreadReply({
   channel,
   thread_ts,
   text,
@@ -56,7 +56,7 @@ async function post_thread_reply({
     throw new Error("Missing required parameter: thread_ts");
   }
 
-  return post_message({
+  return postMessage({
     channel,
     text,
     blocks,
@@ -71,7 +71,7 @@ async function post_thread_reply({
 //#ReturnsType=string
 //#ReturnsValue="ok"
 //#Variables=SLACK_WEBHOOK_URL
-async function post_webhook({
+async function postWebhook({
   text,
   blocks,
   webhookUrl
@@ -135,7 +135,7 @@ async function slackApiCall(method, payload, token) {
 }
 
 module.exports = {
-  post_message,
-  post_thread_reply,
-  post_webhook
+  postMessage,
+  postThreadReply,
+  postWebhook
 };

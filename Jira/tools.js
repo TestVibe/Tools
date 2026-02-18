@@ -6,7 +6,7 @@
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001"}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function create_issue({
+async function createIssue({
   projectKey,
   projectId,
   issueType,
@@ -84,7 +84,7 @@ async function create_issue({
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function append_to_issue({
+async function appendToIssue({
   issueKey,
   body,
   visibility
@@ -115,7 +115,7 @@ async function append_to_issue({
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function append_plain_comment({
+async function appendPlainComment({
   issueKey,
   text,
   visibility
@@ -124,7 +124,7 @@ async function append_plain_comment({
     throw new Error("Missing required parameter: text");
   }
 
-  return append_to_issue({
+  return appendToIssue({
     issueKey,
     body: String(text),
     visibility
@@ -137,7 +137,7 @@ async function append_plain_comment({
 //#ReturnsType=object
 //#ReturnsValue={"ok":true}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function transition_issue({
+async function transitionIssue({
   issueKey,
   transitionId,
   comment,
@@ -187,7 +187,7 @@ async function transition_issue({
 //#ReturnsType=object
 //#ReturnsValue={"issues":[{"key":"QA-123"}],"maxResults":50}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function search_issues({
+async function searchIssues({
   jql,
   maxResults,
   fields,
@@ -239,7 +239,7 @@ async function search_issues({
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","fields":{"summary":"Smoke run failed"}}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function get_issue({
+async function getIssue({
   issueKey,
   fields,
   expand,
@@ -265,7 +265,7 @@ async function get_issue({
 //#ReturnsType=object
 //#ReturnsValue={"transitions":[{"id":"31","name":"Done"}]}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
-async function list_transitions({
+async function listTransitions({
   issueKey,
   expandFields
 }) {
@@ -384,11 +384,11 @@ function isNumeric(value) {
 }
 
 module.exports = {
-  create_issue,
-  append_to_issue,
-  append_plain_comment,
-  transition_issue,
-  search_issues,
-  get_issue,
-  list_transitions
+  createIssue,
+  appendToIssue,
+  appendPlainComment,
+  transitionIssue,
+  searchIssues,
+  getIssue,
+  listTransitions
 };

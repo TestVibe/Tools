@@ -3,7 +3,7 @@
 //#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
 //#ReturnsType=array
 //#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
-async function send_email({
+async function sendEmail({
   fromEmail,
   toEmail,
   subject,
@@ -36,4 +36,4 @@ async function send_email({
   return response.json();
 }
 
-module.exports = send_email;
+module.exports = sendEmail;

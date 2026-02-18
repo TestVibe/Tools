@@ -6,7 +6,7 @@
 //#ReturnsType=string
 //#ReturnsValue="Webhook response body, usually '1' on success"
 //#Variables=TEAMS_WEBHOOK_URL
-async function post_message({
+async function postMessage({
   text,
   webhookUrl,
   maxRetries
@@ -25,7 +25,7 @@ async function post_message({
 //#ReturnsType=string
 //#ReturnsValue="Webhook response body, usually '1' on success"
 //#Variables=TEAMS_WEBHOOK_URL
-async function post_adaptive_card({
+async function postAdaptiveCard({
   title,
   text,
   facts,
@@ -144,6 +144,6 @@ function delay(ms) {
 }
 
 module.exports = {
-  post_message,
-  post_adaptive_card
+  postMessage,
+  postAdaptiveCard
 };

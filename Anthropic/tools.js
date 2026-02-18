@@ -79,7 +79,7 @@ async function ask(input, image, image2, model) {
 //#ReturnsValue="Plain-text response from Anthropic with web results"
 //#Variables=ANTHROPIC_MODEL
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
-async function ask_web(input, image, image2, model) {
+async function askWeb(input, image, image2, model) {
 	const args = (input && typeof input === "object" && !Array.isArray(input))
 		? {
 			prompt: input.prompt,
@@ -154,5 +154,5 @@ async function ask_web(input, image, image2, model) {
 
 module.exports = {
 	ask,
-	ask_web
+	askWeb
 };

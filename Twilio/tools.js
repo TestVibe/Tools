@@ -6,7 +6,7 @@
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"+15551234567"}
 //#Variables=TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_FROM_NUMBER
-async function send_sms({
+async function sendSms({
   to,
   body,
   from,
@@ -48,7 +48,7 @@ async function send_sms({
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"whatsapp:+15551234567"}
 //#Variables=TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_WHATSAPP_FROM
-async function send_whatsapp({
+async function sendWhatsapp({
   to,
   body,
   from,
@@ -91,7 +91,7 @@ async function send_whatsapp({
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"delivered","error_code":null}
 //#Variables=TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN
-async function fetch_message({
+async function fetchMessage({
   sid
 }) {
   if (!sid) {
@@ -188,7 +188,7 @@ function parseJsonOrNull(raw) {
 }
 
 module.exports = {
-  send_sms,
-  send_whatsapp,
-  fetch_message
+  sendSms,
+  sendWhatsapp,
+  fetchMessage
 };

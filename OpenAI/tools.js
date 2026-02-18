@@ -67,7 +67,7 @@ async function ask(input, image, image2, model) {
 //#ReturnsValue="Plain-text response from OpenAI with web-grounded info"
 //#Variables=OPENAI_MODEL
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
-async function ask_web(input, image, image2, model) {
+async function askWeb(input, image, image2, model) {
 	const args = (input && typeof input === "object" && !Array.isArray(input))
 		? {
 			prompt: input.prompt,
@@ -124,5 +124,5 @@ async function ask_web(input, image, image2, model) {
 
 module.exports = {
 	ask,
-	ask_web
+	askWeb
 };

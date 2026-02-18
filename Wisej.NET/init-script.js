@@ -147,30 +147,30 @@
 	}
 
 	const tools = {
-		combobox_open(input = {}) {
+		comboboxOpen(input = {}) {
 			const combo = resolveComboBox(input);
 			combo.open();
 			return { id: combo.getId(), opened: true };
 		},
 
-		combobox_close(input = {}) {
+		comboboxClose(input = {}) {
 			const combo = resolveComboBox(input);
 			combo.close();
 			return { id: combo.getId(), closed: true };
 		},
 
-		combobox_set_value(input = {}) {
+		comboboxSetValue(input = {}) {
 			const combo = resolveComboBox(input);
 			combo.setValue(input.value == null ? "" : String(input.value));
 			return { id: combo.getId(), value: combo.getValue() };
 		},
 
-		combobox_get_value(input = {}) {
+		comboboxGetValue(input = {}) {
 			const combo = resolveComboBox(input);
 			return { id: combo.getId(), value: combo.getValue() };
 		},
 
-		combobox_set_selected_index(input = {}) {
+		comboboxSetSelectedIndex(input = {}) {
 			if (!Number.isInteger(input.index)) {
 				throw new Error("Parameter 'index' must be an integer.");
 			}
@@ -180,12 +180,12 @@
 			return { id: combo.getId(), selectedIndex: combo.getSelectedIndex() };
 		},
 
-		combobox_get_selected_index(input = {}) {
+		comboboxGetSelectedIndex(input = {}) {
 			const combo = resolveComboBox(input);
 			return { id: combo.getId(), selectedIndex: combo.getSelectedIndex() };
 		},
 
-		combobox_set_selection(input = {}) {
+		comboboxSetSelection(input = {}) {
 			if (!Number.isInteger(input.start) || input.start < 0) {
 				throw new Error("Parameter 'start' must be an integer >= 0.");
 			}
@@ -198,7 +198,7 @@
 			return { id: combo.getId(), selection: combo.getSelection() };
 		},
 
-		combobox_get_selection(input = {}) {
+		comboboxGetSelection(input = {}) {
 			const combo = resolveComboBox(input);
 			return { id: combo.getId(), selection: combo.getSelection() };
 		}

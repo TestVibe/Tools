@@ -6,7 +6,7 @@
 //#Description=Opens a Wisej ComboBox popup by id, ariaLabel, or selector.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","opened":true}
-async function combobox_open(...args) {
+async function comboboxOpen(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -19,10 +19,10 @@ async function combobox_open(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_open !== "function") {
-				throw new Error("Browser helper not found: combobox_open. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxOpen !== "function") {
+				throw new Error("Browser helper not found: comboboxOpen. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_open(payload);
+			return helpers.comboboxOpen(payload);
 		},
 		{ payload: input }
 	);
@@ -33,7 +33,7 @@ async function combobox_open(...args) {
 //#Description=Closes a Wisej ComboBox popup by id, ariaLabel, or selector.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","closed":true}
-async function combobox_close(...args) {
+async function comboboxClose(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -46,10 +46,10 @@ async function combobox_close(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_close !== "function") {
-				throw new Error("Browser helper not found: combobox_close. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxClose !== "function") {
+				throw new Error("Browser helper not found: comboboxClose. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_close(payload);
+			return helpers.comboboxClose(payload);
 		},
 		{ payload: input }
 	);
@@ -60,7 +60,7 @@ async function combobox_close(...args) {
 //#Description=Sets the text value of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
-async function combobox_set_value(...args) {
+async function comboboxSetValue(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -73,10 +73,10 @@ async function combobox_set_value(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_set_value !== "function") {
-				throw new Error("Browser helper not found: combobox_set_value. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxSetValue !== "function") {
+				throw new Error("Browser helper not found: comboboxSetValue. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_set_value(payload);
+			return helpers.comboboxSetValue(payload);
 		},
 		{ payload: input }
 	);
@@ -87,7 +87,7 @@ async function combobox_set_value(...args) {
 //#Description=Gets the current text value of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
-async function combobox_get_value(...args) {
+async function comboboxGetValue(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -100,10 +100,10 @@ async function combobox_get_value(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_get_value !== "function") {
-				throw new Error("Browser helper not found: combobox_get_value. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxGetValue !== "function") {
+				throw new Error("Browser helper not found: comboboxGetValue. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_get_value(payload);
+			return helpers.comboboxGetValue(payload);
 		},
 		{ payload: input }
 	);
@@ -114,7 +114,7 @@ async function combobox_get_value(...args) {
 //#Description=Sets the selected item index of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
-async function combobox_set_selected_index(...args) {
+async function comboboxSetSelectedIndex(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -127,10 +127,10 @@ async function combobox_set_selected_index(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_set_selected_index !== "function") {
-				throw new Error("Browser helper not found: combobox_set_selected_index. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxSetSelectedIndex !== "function") {
+				throw new Error("Browser helper not found: comboboxSetSelectedIndex. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_set_selected_index(payload);
+			return helpers.comboboxSetSelectedIndex(payload);
 		},
 		{ payload: input }
 	);
@@ -141,7 +141,7 @@ async function combobox_set_selected_index(...args) {
 //#Description=Gets the selected item index of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
-async function combobox_get_selected_index(...args) {
+async function comboboxGetSelectedIndex(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -154,10 +154,10 @@ async function combobox_get_selected_index(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_get_selected_index !== "function") {
-				throw new Error("Browser helper not found: combobox_get_selected_index. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxGetSelectedIndex !== "function") {
+				throw new Error("Browser helper not found: comboboxGetSelectedIndex. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_get_selected_index(payload);
+			return helpers.comboboxGetSelectedIndex(payload);
 		},
 		{ payload: input }
 	);
@@ -168,7 +168,7 @@ async function combobox_get_selected_index(...args) {
 //#Description=Sets text selection range in the editable portion of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
-async function combobox_set_selection(...args) {
+async function comboboxSetSelection(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -181,10 +181,10 @@ async function combobox_set_selection(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_set_selection !== "function") {
-				throw new Error("Browser helper not found: combobox_set_selection. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxSetSelection !== "function") {
+				throw new Error("Browser helper not found: comboboxSetSelection. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_set_selection(payload);
+			return helpers.comboboxSetSelection(payload);
 		},
 		{ payload: input }
 	);
@@ -195,7 +195,7 @@ async function combobox_set_selection(...args) {
 //#Description=Gets text selection range from the editable portion of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
-async function combobox_get_selection(...args) {
+async function comboboxGetSelection(...args) {
 	const [first, second] = args;
 	const page = first && typeof first.evaluate === "function"
 		? first
@@ -208,22 +208,22 @@ async function combobox_get_selection(...args) {
 	return page.evaluate(
 		({ payload }) => {
 			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.combobox_get_selection !== "function") {
-				throw new Error("Browser helper not found: combobox_get_selection. Ensure init-script.js is loaded before tool calls.");
+			if (!helpers || typeof helpers.comboboxGetSelection !== "function") {
+				throw new Error("Browser helper not found: comboboxGetSelection. Ensure init-script.js is loaded before tool calls.");
 			}
-			return helpers.combobox_get_selection(payload);
+			return helpers.comboboxGetSelection(payload);
 		},
 		{ payload: input }
 	);
 }
 
 module.exports = {
-	combobox_open,
-	combobox_close,
-	combobox_set_value,
-	combobox_get_value,
-	combobox_set_selected_index,
-	combobox_get_selected_index,
-	combobox_set_selection,
-	combobox_get_selection
+	comboboxOpen,
+	comboboxClose,
+	comboboxSetValue,
+	comboboxGetValue,
+	comboboxSetSelectedIndex,
+	comboboxGetSelectedIndex,
+	comboboxSetSelection,
+	comboboxGetSelection
 };

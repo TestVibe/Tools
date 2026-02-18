@@ -6,7 +6,7 @@
 //#Description=Creates a new GitHub issue in a repository.
 //#ReturnsType=object
 //#ReturnsValue={"id":12345,"number":42,"html_url":"https://github.com/owner/repo/issues/42"}
-async function create_issue({
+async function createIssue({
   owner,
   repo,
   title,
@@ -45,7 +45,7 @@ async function create_issue({
 //#Description=Adds a comment to an existing GitHub issue.
 //#ReturnsType=object
 //#ReturnsValue={"id":98765,"html_url":"https://github.com/owner/repo/issues/42#issuecomment-98765"}
-async function append_to_issue({
+async function appendToIssue({
   owner,
   repo,
   issue_number,
@@ -80,6 +80,6 @@ async function append_to_issue({
 }
 
 module.exports = {
-  create_issue,
-  append_to_issue
+  createIssue,
+  appendToIssue
 };
