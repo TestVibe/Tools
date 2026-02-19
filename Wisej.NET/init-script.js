@@ -559,6 +559,24 @@
 			};
 		},
 
+		dataGridGetCellValue(input = {}) {
+			ensureNonNegativeInteger(input.row, "row");
+			ensureNonNegativeInteger(input.col, "col");
+
+			const grid = resolveDataGrid(input);
+			const model = typeof grid.getTableModel === "function" ? grid.getTableModel() : null;
+			if (!model || typeof model.getValue !== "function") {
+				throw new Error("Unable to read DataGrid table model value.");
+			}
+
+			return {
+				id: grid.getId(),
+				row: input.row,
+				col: input.col,
+				value: model.getValue(input.col, input.row)
+			};
+		},
+
 		dataGridGetViewportInfo(input = {}) {
 			const grid = resolveDataGrid(input);
 			return {

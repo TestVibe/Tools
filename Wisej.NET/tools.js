@@ -158,6 +158,15 @@ async function dataGridEditCell(...args) {
 	return invokeWisejHelper("dataGridEditCell", args);
 }
 
+//#Example=Get DataGrid cell value: { id: "dataGridView1", row: 120, col: 4 }.
+//#Summary=Get DataGrid Cell Value
+//#Description=Gets the current value from a Wisej DataGrid cell using the table model.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dataGridView1","row":120,"col":4,"value":"Done"}
+async function dataGridGetCellValue(...args) {
+	return invokeWisejHelper("dataGridGetCellValue", args);
+}
+
 //#Example=Get DataGrid viewport info: { id: "dataGridView1" }.
 //#Summary=Get DataGrid Viewport Info
 //#Description=Returns viewport, focus, and row count information for a Wisej DataGrid.
@@ -182,5 +191,6 @@ module.exports = {
 	dataGridScrollToCell,
 	dataGridFocusCell,
 	dataGridEditCell,
+	dataGridGetCellValue,
 	dataGridGetViewportInfo
 };
