@@ -1,5 +1,35 @@
 //#PackageDescription=Wisej.NET provider tools for UI automation and interaction helpers.
 //#PackageVersion=1.0.0
+function resolvePageAndInput(args) {
+	const [first, second] = args;
+	const page = first && typeof first.evaluate === "function"
+		? first
+		: second && typeof second.evaluate === "function"
+			? second
+			: null;
+
+	if (!page)
+		throw new Error("Playwright page context was not provided.");
+
+	const input = page === first ? (second ?? {}) : (first ?? {});
+	return { page, input };
+}
+
+async function invokeWisejHelper(helperName, args) {
+	const { page, input } = resolvePageAndInput(args);
+
+	return page.evaluate(
+		({ helperName, payload }) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers[helperName] !== "function") {
+				throw new Error(`Browser helper not found: ${helperName}. Ensure init-script.js is loaded before tool calls.`);
+			}
+			return helpers[helperName](payload);
+		},
+		{ helperName, payload: input }
+	);
+}
+
 //#Example=Open ComboBox by id: { id: "luConfirmedFilter" }.
 //#Example=Open ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
 //#Summary=Open ComboBox
@@ -7,25 +37,7 @@
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","opened":true}
 async function comboboxOpen(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxOpen !== "function") {
-				throw new Error("Browser helper not found: comboboxOpen. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxOpen(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxOpen", args);
 }
 
 //#Example=Close ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -34,25 +46,7 @@ async function comboboxOpen(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","closed":true}
 async function comboboxClose(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxClose !== "function") {
-				throw new Error("Browser helper not found: comboboxClose. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxClose(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxClose", args);
 }
 
 //#Example=Set ComboBox value: { ariaLabel: "luConfirmedFilter", value: "Williamson, Ryan" }.
@@ -61,25 +55,7 @@ async function comboboxClose(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
 async function comboboxSetValue(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxSetValue !== "function") {
-				throw new Error("Browser helper not found: comboboxSetValue. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxSetValue(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxSetValue", args);
 }
 
 //#Example=Get ComboBox value by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -88,25 +64,7 @@ async function comboboxSetValue(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
 async function comboboxGetValue(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxGetValue !== "function") {
-				throw new Error("Browser helper not found: comboboxGetValue. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxGetValue(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxGetValue", args);
 }
 
 //#Example=Set selected index: { selector: "[aria-label=\"luConfirmedFilter\"]", index: 2 }.
@@ -115,25 +73,7 @@ async function comboboxGetValue(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
 async function comboboxSetSelectedIndex(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxSetSelectedIndex !== "function") {
-				throw new Error("Browser helper not found: comboboxSetSelectedIndex. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxSetSelectedIndex(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxSetSelectedIndex", args);
 }
 
 //#Example=Get selected index by ariaLabel: { ariaLabel: "luConfirmedFilter" }.
@@ -142,25 +82,7 @@ async function comboboxSetSelectedIndex(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
 async function comboboxGetSelectedIndex(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxGetSelectedIndex !== "function") {
-				throw new Error("Browser helper not found: comboboxGetSelectedIndex. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxGetSelectedIndex(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxGetSelectedIndex", args);
 }
 
 //#Example=Set text selection: { selector: "[aria-label=\"luConfirmedFilter\"]", start: 0, length: 5 }.
@@ -169,25 +91,7 @@ async function comboboxGetSelectedIndex(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
 async function comboboxSetSelection(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxSetSelection !== "function") {
-				throw new Error("Browser helper not found: comboboxSetSelection. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxSetSelection(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxSetSelection", args);
 }
 
 //#Example=Get text selection by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -196,25 +100,7 @@ async function comboboxSetSelection(...args) {
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
 async function comboboxGetSelection(...args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	if (!page) throw new Error("Playwright page context was not provided.");
-
-	return page.evaluate(
-		({ payload }) => {
-			const helpers = globalThis.__wisejNetTools;
-			if (!helpers || typeof helpers.comboboxGetSelection !== "function") {
-				throw new Error("Browser helper not found: comboboxGetSelection. Ensure init-script.js is loaded before tool calls.");
-			}
-			return helpers.comboboxGetSelection(payload);
-		},
-		{ payload: input }
-	);
+	return invokeWisejHelper("comboboxGetSelection", args);
 }
 
 module.exports = {
