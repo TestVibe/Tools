@@ -103,6 +103,70 @@ async function comboboxGetSelection(...args) {
 	return invokeWisejHelper("comboboxGetSelection", args);
 }
 
+//#Example=Scroll list to index: { id: "listBox1", index: 120 }.
+//#Summary=Scroll List To Index
+//#Description=Scrolls a Wisej list control to ensure the specified item index is visible.
+//#ReturnsType=object
+//#ReturnsValue={"id":"listBox1","index":120,"topIndex":120}
+async function listScrollToIndex(...args) {
+	return invokeWisejHelper("listScrollToIndex", args);
+}
+
+//#Example=Select list item by index: { selector: "[aria-label=\"listBox1\"]", index: 3 }.
+//#Example=Select list item by text: { id: "listBox1", text: "Alpha", exact: true }.
+//#Summary=Select List Item
+//#Description=Selects an item in a Wisej list control by index or text.
+//#ReturnsType=object
+//#ReturnsValue={"id":"listBox1","index":3,"selectedIndices":[3]}
+async function listSelectItem(...args) {
+	return invokeWisejHelper("listSelectItem", args);
+}
+
+//#Example=Get list viewport info: { id: "listBox1" }.
+//#Summary=Get List Viewport Info
+//#Description=Returns viewport and selection information for a Wisej list control.
+//#ReturnsType=object
+//#ReturnsValue={"id":"listBox1","totalCount":500,"topIndex":120,"visibleCount":12}
+async function listGetViewportInfo(...args) {
+	return invokeWisejHelper("listGetViewportInfo", args);
+}
+
+//#Example=Scroll DataGrid to cell: { id: "dataGridView1", row: 120, col: 4 }.
+//#Summary=Scroll DataGrid To Cell
+//#Description=Scrolls a Wisej DataGrid to ensure the specified cell is visible.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dataGridView1","row":120,"col":4}
+async function dataGridScrollToCell(...args) {
+	return invokeWisejHelper("dataGridScrollToCell", args);
+}
+
+//#Example=Focus DataGrid cell: { id: "dataGridView1", row: 120, col: 4 }.
+//#Summary=Focus DataGrid Cell
+//#Description=Moves focus to a specific Wisej DataGrid cell.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dataGridView1","row":120,"col":4}
+async function dataGridFocusCell(...args) {
+	return invokeWisejHelper("dataGridFocusCell", args);
+}
+
+//#Example=Edit DataGrid cell: { id: "dataGridView1", row: 120, col: 4, value: "Done", commit: true }.
+//#Summary=Edit DataGrid Cell
+//#Description=Edits a Wisej DataGrid cell and optionally commits the edit.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dataGridView1","row":120,"col":4,"value":"Done","committed":true}
+async function dataGridEditCell(...args) {
+	return invokeWisejHelper("dataGridEditCell", args);
+}
+
+//#Example=Get DataGrid viewport info: { id: "dataGridView1" }.
+//#Summary=Get DataGrid Viewport Info
+//#Description=Returns viewport, focus, and row count information for a Wisej DataGrid.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dataGridView1","rowCount":1000,"firstVisibleRow":120,"visibleRowCount":20}
+async function dataGridGetViewportInfo(...args) {
+	return invokeWisejHelper("dataGridGetViewportInfo", args);
+}
+
 module.exports = {
 	comboboxOpen,
 	comboboxClose,
@@ -111,5 +175,12 @@ module.exports = {
 	comboboxSetSelectedIndex,
 	comboboxGetSelectedIndex,
 	comboboxSetSelection,
-	comboboxGetSelection
+	comboboxGetSelection,
+	listScrollToIndex,
+	listSelectItem,
+	listGetViewportInfo,
+	dataGridScrollToCell,
+	dataGridFocusCell,
+	dataGridEditCell,
+	dataGridGetViewportInfo
 };
