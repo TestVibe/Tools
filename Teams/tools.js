@@ -5,7 +5,6 @@
 //#Description=Posts a plain text message to a Microsoft Teams Incoming Webhook URL.
 //#ReturnsType=string
 //#ReturnsValue="Webhook response body, usually '1' on success"
-//#Variables=TEAMS_WEBHOOK_URL
 async function postMessage({
   text,
   webhookUrl,
@@ -24,7 +23,6 @@ async function postMessage({
 //#Description=Posts an Adaptive Card attachment to a Microsoft Teams Incoming Webhook URL.
 //#ReturnsType=string
 //#ReturnsValue="Webhook response body, usually '1' on success"
-//#Variables=TEAMS_WEBHOOK_URL
 async function postAdaptiveCard({
   title,
   text,

@@ -5,7 +5,6 @@
 //#Description=Posts a message to Slack using chat.postMessage.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true,"channel":"C0123456789","ts":"1710000000.000100"}
-//#Variables=SLACK_BOT_TOKEN
 async function postMessage({
   channel,
   text,
@@ -44,7 +43,6 @@ async function postMessage({
 //#Description=Posts a threaded reply message using chat.postMessage and thread_ts.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true,"channel":"C0123456789","ts":"1710000010.000200","thread_ts":"1710000000.000100"}
-//#Variables=SLACK_BOT_TOKEN
 async function postThreadReply({
   channel,
   thread_ts,
@@ -70,7 +68,6 @@ async function postThreadReply({
 //#Description=Posts a message payload to a Slack Incoming Webhook URL.
 //#ReturnsType=string
 //#ReturnsValue="ok"
-//#Variables=SLACK_WEBHOOK_URL
 async function postWebhook({
   text,
   blocks,

@@ -5,7 +5,7 @@
 //#Description=Sends an SMS/MMS message using Twilio Programmable Messaging.
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"+15551234567"}
-//#Variables=TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_FROM_NUMBER
+//#Variables=TWILIO_ACCOUNT_SID,TWILIO_FROM_NUMBER
 async function sendSms({
   to,
   body,
@@ -47,7 +47,7 @@ async function sendSms({
 //#Description=Sends a WhatsApp message via Twilio using the Messages resource.
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"whatsapp:+15551234567"}
-//#Variables=TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_WHATSAPP_FROM
+//#Variables=TWILIO_ACCOUNT_SID,TWILIO_WHATSAPP_FROM
 async function sendWhatsapp({
   to,
   body,
@@ -90,7 +90,7 @@ async function sendWhatsapp({
 //#Description=Retrieves a message by SID from Twilio Programmable Messaging.
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"delivered","error_code":null}
-//#Variables=TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN
+//#Variables=TWILIO_ACCOUNT_SID
 async function fetchMessage({
   sid
 }) {

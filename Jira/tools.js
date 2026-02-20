@@ -5,7 +5,7 @@
 //#Description=Creates a Jira issue using Jira Cloud REST API v3.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001"}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function createIssue({
   projectKey,
   projectId,
@@ -83,7 +83,7 @@ async function createIssue({
 //#Description=Adds a comment to an existing Jira issue.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function appendToIssue({
   issueKey,
   body,
@@ -114,7 +114,7 @@ async function appendToIssue({
 //#Description=Adds a plain-text comment to an issue and converts it to Jira ADF automatically.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function appendPlainComment({
   issueKey,
   text,
@@ -136,7 +136,7 @@ async function appendPlainComment({
 //#Description=Transitions a Jira issue to a new workflow state.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function transitionIssue({
   issueKey,
   transitionId,
@@ -186,7 +186,7 @@ async function transitionIssue({
 //#Description=Searches Jira issues with JQL. Uses enhanced search endpoint with fallback for compatibility.
 //#ReturnsType=object
 //#ReturnsValue={"issues":[{"key":"QA-123"}],"maxResults":50}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function searchIssues({
   jql,
   maxResults,
@@ -238,7 +238,7 @@ async function searchIssues({
 //#Description=Retrieves a Jira issue by key or ID.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","fields":{"summary":"Smoke run failed"}}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function getIssue({
   issueKey,
   fields,
@@ -264,7 +264,7 @@ async function getIssue({
 //#Description=Gets available workflow transitions for an issue.
 //#ReturnsType=object
 //#ReturnsValue={"transitions":[{"id":"31","name":"Done"}]}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL,JIRA_API_TOKEN
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function listTransitions({
   issueKey,
   expandFields
