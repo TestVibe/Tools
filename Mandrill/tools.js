@@ -3,12 +3,44 @@
 //#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
 //#ReturnsType=array
 //#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
-async function sendEmail({
-  fromEmail,
-  toEmail,
-  subject,
-  text
-}) {
+function looksLikePage(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value.goto === "function" &&
+    typeof value.url === "function"
+  );
+}
+
+function normalizeArgs(pageOrInput, inputMaybe) {
+  if (looksLikePage(pageOrInput)) {
+    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
+      return inputMaybe;
+    }
+
+    return {
+      fromEmail: pageOrInput.fromEmail,
+      toEmail: pageOrInput.toEmail,
+      subject: pageOrInput.subject,
+      text: pageOrInput.text
+    };
+  }
+
+  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
+    return pageOrInput;
+  }
+
+  return {};
+}
+
+async function sendEmail(pageOrInput, inputMaybe) {
+  const {
+    fromEmail,
+    toEmail,
+    subject,
+    text
+  } = normalizeArgs(pageOrInput, inputMaybe);
+
   const apiKey = process.env.MANDRILL_API_KEY;
   if (!apiKey) {
     throw new Error("Missing environment variable: MANDRILL_API_KEY");
