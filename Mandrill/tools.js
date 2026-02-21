@@ -14,6 +14,22 @@ async function sendEmail({
     throw new Error("Missing environment variable: MANDRILL_API_KEY");
   }
 
+  if (typeof fromEmail !== "string" || fromEmail.trim().length === 0) {
+    throw new Error("Invalid argument: fromEmail must be a non-empty string");
+  }
+
+  if (typeof toEmail !== "string" || toEmail.trim().length === 0) {
+    throw new Error("Invalid argument: toEmail must be a non-empty string");
+  }
+
+  if (typeof subject !== "string" || subject.trim().length === 0) {
+    throw new Error("Invalid argument: subject must be a non-empty string");
+  }
+
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new Error("Invalid argument: text must be a non-empty string");
+  }
+
   const response = await fetch("https://mandrillapp.com/api/1.0/messages/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,7 +49,19 @@ async function sendEmail({
     throw new Error(`Mandrill request failed (${response.status}): ${errorBody}`);
   }
 
-  return response.json();
+  const rawBody = await response.text();
+  let result;
+  try {
+    result = JSON.parse(rawBody);
+  } catch {
+    throw new Error(`Mandrill returned invalid JSON (${response.status}): ${rawBody}`);
+  }
+
+  if (!Array.isArray(result) || result.length === 0) {
+    throw new Error(`Mandrill returned an empty or invalid result (${response.status}): ${rawBody}`);
+  }
+
+  return result;
 }
 
 module.exports = sendEmail;
