@@ -5,7 +5,40 @@
 //#Description=Posts a message to Slack using chat.postMessage.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true,"channel":"C0123456789","ts":"1710000000.000100"}
-async function postMessage({
+function looksLikePage(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value.goto === "function" &&
+    typeof value.url === "function"
+  );
+}
+
+function pickArgs(source, keys) {
+  const target = {};
+  for (const key of keys) {
+    target[key] = source ? source[key] : undefined;
+  }
+  return target;
+}
+
+function normalizeArgs(pageOrInput, inputMaybe, keys) {
+  if (looksLikePage(pageOrInput)) {
+    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
+      return inputMaybe;
+    }
+    return pickArgs(pageOrInput, keys);
+  }
+
+  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
+    return pageOrInput;
+  }
+
+  return {};
+}
+
+async function postMessage(pageOrInput, inputMaybe) {
+  const {
   channel,
   text,
   blocks,
@@ -13,7 +46,7 @@ async function postMessage({
   unfurl_links,
   unfurl_media,
   token
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["channel", "text", "blocks", "thread_ts", "unfurl_links", "unfurl_media", "token"]);
   const botToken = token || process.env.SLACK_BOT_TOKEN;
   if (!botToken) {
     throw new Error("Missing Slack bot token. Set SLACK_BOT_TOKEN or pass token.");
@@ -43,13 +76,14 @@ async function postMessage({
 //#Description=Posts a threaded reply message using chat.postMessage and thread_ts.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true,"channel":"C0123456789","ts":"1710000010.000200","thread_ts":"1710000000.000100"}
-async function postThreadReply({
+async function postThreadReply(pageOrInput, inputMaybe) {
+  const {
   channel,
   thread_ts,
   text,
   blocks,
   token
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["channel", "thread_ts", "text", "blocks", "token"]);
   if (!thread_ts) {
     throw new Error("Missing required parameter: thread_ts");
   }
@@ -68,11 +102,12 @@ async function postThreadReply({
 //#Description=Posts a message payload to a Slack Incoming Webhook URL.
 //#ReturnsType=string
 //#ReturnsValue="ok"
-async function postWebhook({
+async function postWebhook(pageOrInput, inputMaybe) {
+  const {
   text,
   blocks,
   webhookUrl
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["text", "blocks", "webhookUrl"]);
   const url = webhookUrl || process.env.SLACK_WEBHOOK_URL;
   if (!url) {
     throw new Error("Missing Slack webhook URL. Set SLACK_WEBHOOK_URL or pass webhookUrl.");

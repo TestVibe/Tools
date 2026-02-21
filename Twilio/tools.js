@@ -6,14 +6,47 @@
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"+15551234567"}
 //#Variables=TWILIO_ACCOUNT_SID,TWILIO_FROM_NUMBER
-async function sendSms({
+function looksLikePage(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value.goto === "function" &&
+    typeof value.url === "function"
+  );
+}
+
+function pickArgs(source, keys) {
+  const target = {};
+  for (const key of keys) {
+    target[key] = source ? source[key] : undefined;
+  }
+  return target;
+}
+
+function normalizeArgs(pageOrInput, inputMaybe, keys) {
+  if (looksLikePage(pageOrInput)) {
+    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
+      return inputMaybe;
+    }
+    return pickArgs(pageOrInput, keys);
+  }
+
+  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
+    return pageOrInput;
+  }
+
+  return {};
+}
+
+async function sendSms(pageOrInput, inputMaybe) {
+  const {
   to,
   body,
   from,
   messagingServiceSid,
   mediaUrl,
   statusCallback
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["to", "body", "from", "messagingServiceSid", "mediaUrl", "statusCallback"]);
   if (!to) {
     throw new Error("Missing required parameter: to");
   }
@@ -48,14 +81,15 @@ async function sendSms({
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"whatsapp:+15551234567"}
 //#Variables=TWILIO_ACCOUNT_SID,TWILIO_WHATSAPP_FROM
-async function sendWhatsapp({
+async function sendWhatsapp(pageOrInput, inputMaybe) {
+  const {
   to,
   body,
   from,
   messagingServiceSid,
   mediaUrl,
   statusCallback
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["to", "body", "from", "messagingServiceSid", "mediaUrl", "statusCallback"]);
   if (!to) {
     throw new Error("Missing required parameter: to");
   }
@@ -91,9 +125,10 @@ async function sendWhatsapp({
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"delivered","error_code":null}
 //#Variables=TWILIO_ACCOUNT_SID
-async function fetchMessage({
+async function fetchMessage(pageOrInput, inputMaybe) {
+  const {
   sid
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["sid"]);
   if (!sid) {
     throw new Error("Missing required parameter: sid");
   }

@@ -6,7 +6,40 @@
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001"}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function createIssue({
+function looksLikePage(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value.goto === "function" &&
+    typeof value.url === "function"
+  );
+}
+
+function pickArgs(source, keys) {
+  const target = {};
+  for (const key of keys) {
+    target[key] = source ? source[key] : undefined;
+  }
+  return target;
+}
+
+function normalizeArgs(pageOrInput, inputMaybe, keys) {
+  if (looksLikePage(pageOrInput)) {
+    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
+      return inputMaybe;
+    }
+    return pickArgs(pageOrInput, keys);
+  }
+
+  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
+    return pageOrInput;
+  }
+
+  return {};
+}
+
+async function createIssue(pageOrInput, inputMaybe) {
+  const {
   projectKey,
   projectId,
   issueType,
@@ -18,7 +51,7 @@ async function createIssue({
   parentKey,
   priority,
   fields
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["projectKey", "projectId", "issueType", "issueTypeId", "summary", "description", "labels", "assigneeAccountId", "parentKey", "priority", "fields"]);
   if (!summary) {
     throw new Error("Missing required parameter: summary");
   }
@@ -84,11 +117,12 @@ async function createIssue({
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function appendToIssue({
+async function appendToIssue(pageOrInput, inputMaybe) {
+  const {
   issueKey,
   body,
   visibility
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "body", "visibility"]);
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
@@ -115,11 +149,12 @@ async function appendToIssue({
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function appendPlainComment({
+async function appendPlainComment(pageOrInput, inputMaybe) {
+  const {
   issueKey,
   text,
   visibility
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "text", "visibility"]);
   if (text === undefined || text === null || String(text).length === 0) {
     throw new Error("Missing required parameter: text");
   }
@@ -137,13 +172,14 @@ async function appendPlainComment({
 //#ReturnsType=object
 //#ReturnsValue={"ok":true}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function transitionIssue({
+async function transitionIssue(pageOrInput, inputMaybe) {
+  const {
   issueKey,
   transitionId,
   comment,
   fields,
   update
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "transitionId", "comment", "fields", "update"]);
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
@@ -187,14 +223,15 @@ async function transitionIssue({
 //#ReturnsType=object
 //#ReturnsValue={"issues":[{"key":"QA-123"}],"maxResults":50}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function searchIssues({
+async function searchIssues(pageOrInput, inputMaybe) {
+  const {
   jql,
   maxResults,
   fields,
   nextPageToken,
   reconcileIssues,
   startAt
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["jql", "maxResults", "fields", "nextPageToken", "reconcileIssues", "startAt"]);
   if (!jql) {
     throw new Error("Missing required parameter: jql");
   }
@@ -239,12 +276,13 @@ async function searchIssues({
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","fields":{"summary":"Smoke run failed"}}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function getIssue({
+async function getIssue(pageOrInput, inputMaybe) {
+  const {
   issueKey,
   fields,
   expand,
   properties
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "fields", "expand", "properties"]);
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
@@ -265,10 +303,11 @@ async function getIssue({
 //#ReturnsType=object
 //#ReturnsValue={"transitions":[{"id":"31","name":"Done"}]}
 //#Variables=JIRA_BASE_URL,JIRA_EMAIL
-async function listTransitions({
+async function listTransitions(pageOrInput, inputMaybe) {
+  const {
   issueKey,
   expandFields
-}) {
+  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "expandFields"]);
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
