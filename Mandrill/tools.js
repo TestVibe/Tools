@@ -19,7 +19,6 @@ function normalizeArgs(pageOrInput, inputMaybe) {
     }
 
     return {
-      fromEmail: pageOrInput.fromEmail,
       toEmail: pageOrInput.toEmail,
       subject: pageOrInput.subject,
       text: pageOrInput.text
@@ -35,19 +34,19 @@ function normalizeArgs(pageOrInput, inputMaybe) {
 
 async function sendEmail(pageOrInput, inputMaybe) {
   const {
-    fromEmail,
     toEmail,
     subject,
     text
   } = normalizeArgs(pageOrInput, inputMaybe);
 
   const apiKey = process.env.MANDRILL_API_KEY;
+  const fromEmail = process.env.MANDRILL_FROM || process.env.FROM;
   if (!apiKey) {
     throw new Error("Missing environment variable: MANDRILL_API_KEY");
   }
 
   if (typeof fromEmail !== "string" || fromEmail.trim().length === 0) {
-    throw new Error("Invalid argument: fromEmail must be a non-empty string");
+    throw new Error("Missing environment variable: MANDRILL_FROM");
   }
 
   if (typeof toEmail !== "string" || toEmail.trim().length === 0) {
