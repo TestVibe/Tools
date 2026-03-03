@@ -1,11 +1,13 @@
 //#PackageDescription=Jira provider tools for issue creation and issue updates.
-//#PackageVersion=1.0.0
+
+//#Variables=JIRA_BASE_URL,JIRA_EMAIL
+//#Secrets=JIRA_API_TOKEN
+
 //#Example=Create a Jira issue in project QA with summary "Smoke run failed" and label "automation".
 //#Summary=Create Jira issue
 //#Description=Creates a Jira issue using Jira Cloud REST API v3.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001"}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 function looksLikePage(value) {
   return (
     value &&
@@ -116,7 +118,6 @@ async function createIssue(pageOrInput, inputMaybe) {
 //#Description=Adds a comment to an existing Jira issue.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function appendToIssue(pageOrInput, inputMaybe) {
   const {
   issueKey,
@@ -148,7 +149,6 @@ async function appendToIssue(pageOrInput, inputMaybe) {
 //#Description=Adds a plain-text comment to an issue and converts it to Jira ADF automatically.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function appendPlainComment(pageOrInput, inputMaybe) {
   const {
   issueKey,
@@ -171,7 +171,6 @@ async function appendPlainComment(pageOrInput, inputMaybe) {
 //#Description=Transitions a Jira issue to a new workflow state.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function transitionIssue(pageOrInput, inputMaybe) {
   const {
   issueKey,
@@ -222,7 +221,6 @@ async function transitionIssue(pageOrInput, inputMaybe) {
 //#Description=Searches Jira issues with JQL. Uses enhanced search endpoint with fallback for compatibility.
 //#ReturnsType=object
 //#ReturnsValue={"issues":[{"key":"QA-123"}],"maxResults":50}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function searchIssues(pageOrInput, inputMaybe) {
   const {
   jql,
@@ -275,7 +273,6 @@ async function searchIssues(pageOrInput, inputMaybe) {
 //#Description=Retrieves a Jira issue by key or ID.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","fields":{"summary":"Smoke run failed"}}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function getIssue(pageOrInput, inputMaybe) {
   const {
   issueKey,
@@ -302,7 +299,6 @@ async function getIssue(pageOrInput, inputMaybe) {
 //#Description=Gets available workflow transitions for an issue.
 //#ReturnsType=object
 //#ReturnsValue={"transitions":[{"id":"31","name":"Done"}]}
-//#Variables=JIRA_BASE_URL,JIRA_EMAIL
 async function listTransitions(pageOrInput, inputMaybe) {
   const {
   issueKey,

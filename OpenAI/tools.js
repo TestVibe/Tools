@@ -1,12 +1,14 @@
 //#PackageDescription=OpenAI provider tools for prompt and web-grounded responses.
-//#PackageVersion=1.0.0
+
+//#Variables=OPENAI_MODEL
+//#Secrets=OPENAI_API_KEY
+
 //#Example=Ask OpenAI to summarize the current test failure in one sentence for the run report.
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 //#Summary=OpenAI ask
 //#Description=Sends a prompt with optional images to OpenAI and returns text output.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from OpenAI"
-//#Variables=OPENAI_MODEL
 function normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
 	const looksLikePage =
 		pageOrInput &&
@@ -104,7 +106,6 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 //#Description=Sends a prompt with optional images to OpenAI with web search enabled.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from OpenAI with web-grounded info"
-//#Variables=OPENAI_MODEL
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
 async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
 	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);

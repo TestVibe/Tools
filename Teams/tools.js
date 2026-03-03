@@ -1,5 +1,7 @@
 //#PackageDescription=Microsoft Teams provider tools for posting channel webhook messages.
-//#PackageVersion=1.0.0
+
+//#Secrets=TEAMS_WEBHOOK_URL
+
 //#Example=Post a Teams channel update when a test run finishes.
 //#Summary=Post Teams message
 //#Description=Posts a plain text message to a Microsoft Teams Incoming Webhook URL.

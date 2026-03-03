@@ -1,9 +1,9 @@
 //#PackageDescription=Mandrill provider tools for transactional email delivery.
-//#PackageVersion=1.0.0
-//#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
-//#ReturnsType=array
-//#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
+
 //#Variables=MANDRILL_FROM
+//#Secrets=MANDRILL_API_KEY
+
+//#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
 function looksLikePage(value) {
   return (
     value &&
@@ -33,6 +33,10 @@ function normalizeArgs(pageOrInput, inputMaybe) {
   return {};
 }
 
+//#Summary=Send Mandrill email
+//#Description=Sends a transactional email through Mandrill and returns the API delivery result.
+//#ReturnsType=array
+//#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
 async function sendEmail(pageOrInput, inputMaybe) {
   const {
     toEmail,
@@ -96,4 +100,6 @@ async function sendEmail(pageOrInput, inputMaybe) {
   return result;
 }
 
-module.exports = sendEmail;
+module.exports = {
+  sendEmail
+};

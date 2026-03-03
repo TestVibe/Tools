@@ -1,11 +1,13 @@
 //#PackageDescription=Twilio provider tools for SMS and messaging notifications.
-//#PackageVersion=1.0.0
+
+//#Variables=TWILIO_ACCOUNT_SID,TWILIO_FROM_NUMBER,TWILIO_WHATSAPP_FROM
+//#Secrets=TWILIO_AUTH_TOKEN
+
 //#Example=Send an SMS alert to +15551234567 when a critical test run fails.
 //#Summary=Twilio send SMS
 //#Description=Sends an SMS/MMS message using Twilio Programmable Messaging.
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"+15551234567"}
-//#Variables=TWILIO_ACCOUNT_SID,TWILIO_FROM_NUMBER
 function looksLikePage(value) {
   return (
     value &&
@@ -80,7 +82,6 @@ async function sendSms(pageOrInput, inputMaybe) {
 //#Description=Sends a WhatsApp message via Twilio using the Messages resource.
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"queued","to":"whatsapp:+15551234567"}
-//#Variables=TWILIO_ACCOUNT_SID,TWILIO_WHATSAPP_FROM
 async function sendWhatsapp(pageOrInput, inputMaybe) {
   const {
   to,
@@ -124,7 +125,6 @@ async function sendWhatsapp(pageOrInput, inputMaybe) {
 //#Description=Retrieves a message by SID from Twilio Programmable Messaging.
 //#ReturnsType=object
 //#ReturnsValue={"sid":"SM...","status":"delivered","error_code":null}
-//#Variables=TWILIO_ACCOUNT_SID
 async function fetchMessage(pageOrInput, inputMaybe) {
   const {
   sid

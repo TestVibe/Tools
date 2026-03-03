@@ -1,12 +1,14 @@
 //#PackageDescription=Gemini provider tools for prompt and web-grounded responses.
-//#PackageVersion=1.0.0
+
+//#Variables=GEMINI_MODEL
+//#Secrets=GEMINI_API_KEY
+
 //#Example=Ask Gemini to summarize the latest failing test output in one sentence.
 //#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
 //#Summary=Gemini ask
 //#Description=Sends a prompt with optional images to Gemini and returns text output.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Gemini"
-//#Variables=GEMINI_MODEL
 function normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
 	const looksLikePage =
 		pageOrInput &&
@@ -109,7 +111,6 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 //#Description=Sends a prompt with optional images to Gemini with Google Search grounding enabled.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Gemini with grounded web context"
-//#Variables=GEMINI_MODEL
 //#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
 async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
 	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);

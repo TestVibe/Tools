@@ -1,12 +1,14 @@
 //#PackageDescription=Anthropic provider tools for prompt and web-grounded responses.
-//#PackageVersion=1.0.0
+
+//#Variables=ANTHROPIC_MODEL
+//#Secrets=ANTHROPIC_API_KEY
+
 //#Example=Ask Anthropic to review a screenshot and confirm whether the login page rendered correctly.
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 //#Summary=Anthropic ask
 //#Description=Sends a prompt with optional images to Anthropic and returns text output.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Anthropic"
-//#Variables=ANTHROPIC_MODEL
 function normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
 	const looksLikePage =
 		pageOrInput &&
@@ -103,7 +105,6 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 //#Description=Sends a prompt with optional images to Anthropic with web search enabled.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Anthropic with web results"
-//#Variables=ANTHROPIC_MODEL
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
 async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
 	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
