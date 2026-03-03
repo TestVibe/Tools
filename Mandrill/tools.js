@@ -3,6 +3,7 @@
 //#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
 //#ReturnsType=array
 //#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
+//#Variables=MANDRILL_FROM
 function looksLikePage(value) {
   return (
     value &&
@@ -40,7 +41,7 @@ async function sendEmail(pageOrInput, inputMaybe) {
   } = normalizeArgs(pageOrInput, inputMaybe);
 
   const apiKey = process.env.MANDRILL_API_KEY;
-  const fromEmail = process.env.MANDRILL_FROM || process.env.FROM;
+  const fromEmail = process.env.MANDRILL_FROM;
   if (!apiKey) {
     throw new Error("Missing environment variable: MANDRILL_API_KEY");
   }
