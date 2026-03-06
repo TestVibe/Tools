@@ -1,0 +1,37 @@
+{
+  "name": "Jira",
+  "description": "Jira provider tools for issue creation and issue updates.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [
+    "JIRA_BASE_URL",
+    "JIRA_EMAIL"
+  ],
+  "secrets": [
+    "JIRA_API_TOKEN"
+  ],
+  "tools": [
+    {
+      "name": "createIssue"
+    },
+    {
+      "name": "appendToIssue"
+    },
+    {
+      "name": "appendPlainComment"
+    },
+    {
+      "name": "transitionIssue"
+    },
+    {
+      "name": "searchIssues"
+    },
+    {
+      "name": "getIssue"
+    },
+    {
+      "name": "listTransitions"
+    }
+  ]
+}

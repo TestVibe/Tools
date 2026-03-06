@@ -1,0 +1,38 @@
+{
+  "name": "AWS.S3",
+  "description": "AWS S3 provider tools for storing and retrieving Playwright artifacts and fixtures.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [
+    "AWS_REGION",
+    "AWS_S3_BUCKET",
+    "AWS_S3_ENDPOINT",
+    "AWS_S3_FORCE_PATH_STYLE"
+  ],
+  "secrets": [
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN"
+  ],
+  "tools": [
+    {
+      "name": "uploadArtifact"
+    },
+    {
+      "name": "downloadFixture"
+    },
+    {
+      "name": "createPresignedUploadUrl"
+    },
+    {
+      "name": "createPresignedDownloadUrl"
+    },
+    {
+      "name": "deleteObject"
+    },
+    {
+      "name": "listRunArtifacts"
+    }
+  ]
+}

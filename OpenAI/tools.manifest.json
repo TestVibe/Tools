@@ -1,0 +1,21 @@
+{
+  "name": "OpenAI",
+  "description": "OpenAI provider tools for prompt and web-grounded responses.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [
+    "OPENAI_MODEL"
+  ],
+  "secrets": [
+    "OPENAI_API_KEY"
+  ],
+  "tools": [
+    {
+      "name": "ask"
+    },
+    {
+      "name": "askWeb"
+    }
+  ]
+}

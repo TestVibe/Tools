@@ -1,0 +1,19 @@
+{
+  "name": "GitHub",
+  "description": "GitHub provider tools for issues, comments, and repository workflows.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [],
+  "secrets": [
+    "GITHUB_TOKEN"
+  ],
+  "tools": [
+    {
+      "name": "createIssue"
+    },
+    {
+      "name": "appendToIssue"
+    }
+  ]
+}

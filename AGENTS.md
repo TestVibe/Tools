@@ -7,6 +7,7 @@ This guide defines how to add and maintain provider tools under `Tools/` so they
 Each provider lives in its own folder:
 
 - `Tools/<Provider>/tools.js`: exported tool functions and metadata.
+- `Tools/<Provider>/tools.manifest.json`: provider runtime metadata and dependencies.
 - `Tools/<Provider>/init-script.js`: optional provider initialization logic.
 - `Tools/<Provider>/logo.png`: provider icon shown in the UI.
 
@@ -20,6 +21,16 @@ Current providers follow this structure (`Anthropic`, `Gemini`, `GitHub`, `Jira`
   - `async function createIssue({ owner, repo, title, body } = {}) { ... }`
 - Keep helper functions private (not exported) unless they are intended tools.
 - Do not hardcode secrets or tokens in source.
+
+## Runtime Notes
+
+- The provider packages in `Tools/` are still authored as `tools.js` CommonJS modules.
+- Provider-local dependencies and runtime settings should be declared in `tools.manifest.json`.
+- Validation and Playwright execution are hosted separately by TestVibe's local MCP runtime under:
+  - `Development/TestVibe/API/V1/playwright-mcp-local`
+- That local runtime patches `browser_run_code` to expose Node globals such as `require`, but this applies to validation snippets, not to the `Tools/<Provider>/tools.js` file format.
+- The Playwright runner now reads `tools.manifest.json` and can install provider-local npm dependencies from it.
+- Do not assume validation-time `browser_run_code` behavior replaces provider runtime dependency management; these remain separate execution paths.
 
 ## Metadata Directives
 Use `//#Key=Value` directives for package- and tool-level metadata.
@@ -68,6 +79,7 @@ Rule:
 - Normalize flexible input shapes near the function boundary.
 - Return deterministic, JSON-serializable values.
 - Avoid side effects outside the tool's responsibility.
+- If a tool needs Playwright page access, use `//#PageBound=true` and keep browser-only logic in page-bound flows or init scripts.
 
 ## Update Checklist
 Before submitting changes in `Tools/`:
@@ -79,6 +91,8 @@ Before submitting changes in `Tools/`:
 5. Confirm no secrets are hardcoded.
 6. Confirm request failures produce actionable error messages.
 7. Confirm `tools.js` remains valid JavaScript (no syntax errors).
+8. Confirm any page-bound behavior is intentionally marked with `//#PageBound=true`.
+9. Confirm `tools.manifest.json` matches the exported tools and declared dependencies.
 
 ## Scope
 This document applies to files under `Tools/` only.

@@ -1,0 +1,26 @@
+{
+  "name": "Twilio",
+  "description": "Twilio provider tools for SMS and messaging notifications.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_FROM_NUMBER",
+    "TWILIO_WHATSAPP_FROM"
+  ],
+  "secrets": [
+    "TWILIO_AUTH_TOKEN"
+  ],
+  "tools": [
+    {
+      "name": "sendSms"
+    },
+    {
+      "name": "sendWhatsapp"
+    },
+    {
+      "name": "fetchMessage"
+    }
+  ]
+}

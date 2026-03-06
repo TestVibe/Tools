@@ -1,0 +1,19 @@
+{
+  "name": "Teams",
+  "description": "Microsoft Teams provider tools for posting channel webhook messages.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [],
+  "secrets": [
+    "TEAMS_WEBHOOK_URL"
+  ],
+  "tools": [
+    {
+      "name": "postMessage"
+    },
+    {
+      "name": "postAdaptiveCard"
+    }
+  ]
+}

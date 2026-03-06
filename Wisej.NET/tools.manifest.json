@@ -1,0 +1,59 @@
+{
+  "name": "Wisej.NET",
+  "description": "Wisej.NET provider tools for UI automation and interaction helpers.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": true,
+  "variables": [],
+  "secrets": [],
+  "tools": [
+    {
+      "name": "comboboxOpen"
+    },
+    {
+      "name": "comboboxClose"
+    },
+    {
+      "name": "comboboxSetValue"
+    },
+    {
+      "name": "comboboxGetValue"
+    },
+    {
+      "name": "comboboxSetSelectedIndex"
+    },
+    {
+      "name": "comboboxGetSelectedIndex"
+    },
+    {
+      "name": "comboboxSetSelection"
+    },
+    {
+      "name": "comboboxGetSelection"
+    },
+    {
+      "name": "listScrollToIndex"
+    },
+    {
+      "name": "listSelectItem"
+    },
+    {
+      "name": "listGetViewportInfo"
+    },
+    {
+      "name": "dataGridScrollToCell"
+    },
+    {
+      "name": "dataGridFocusCell"
+    },
+    {
+      "name": "dataGridEditCell"
+    },
+    {
+      "name": "dataGridGetCellValue"
+    },
+    {
+      "name": "dataGridGetViewportInfo"
+    }
+  ]
+}

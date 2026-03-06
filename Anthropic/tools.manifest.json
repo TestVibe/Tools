@@ -1,0 +1,21 @@
+{
+  "name": "Anthropic",
+  "description": "Anthropic provider tools for prompt and web-grounded responses.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [
+    "ANTHROPIC_MODEL"
+  ],
+  "secrets": [
+    "ANTHROPIC_API_KEY"
+  ],
+  "tools": [
+    {
+      "name": "ask"
+    },
+    {
+      "name": "askWeb"
+    }
+  ]
+}

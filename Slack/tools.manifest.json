@@ -1,0 +1,23 @@
+{
+  "name": "Slack",
+  "description": "Slack provider tools for posting and updating channel messages.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [],
+  "secrets": [
+    "SLACK_BOT_TOKEN",
+    "SLACK_WEBHOOK_URL"
+  ],
+  "tools": [
+    {
+      "name": "postMessage"
+    },
+    {
+      "name": "postThreadReply"
+    },
+    {
+      "name": "postWebhook"
+    }
+  ]
+}

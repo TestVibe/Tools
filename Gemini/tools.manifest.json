@@ -1,0 +1,21 @@
+{
+  "name": "Gemini",
+  "description": "Gemini provider tools for prompt and web-grounded responses.",
+  "version": "1.0.0",
+  "entry": "./tools.js",
+  "pageBound": false,
+  "variables": [
+    "GEMINI_MODEL"
+  ],
+  "secrets": [
+    "GEMINI_API_KEY"
+  ],
+  "tools": [
+    {
+      "name": "ask"
+    },
+    {
+      "name": "askWeb"
+    }
+  ]
+}
