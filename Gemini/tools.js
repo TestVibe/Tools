@@ -9,57 +9,17 @@
 //#Description=Sends a prompt with optional images to Gemini and returns text output.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Gemini"
-function normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const looksLikePage =
-		pageOrInput &&
-		typeof pageOrInput === "object" &&
-		typeof pageOrInput.goto === "function" &&
-		typeof pageOrInput.url === "function";
-
-	const input = looksLikePage ? inputOrImage : pageOrInput;
-	const image = looksLikePage ? imageOrImage2 : inputOrImage;
-	const image2 = looksLikePage ? image2OrModel : imageOrImage2;
-	const model = looksLikePage ? modelMaybe : image2OrModel;
-
-	if (input && typeof input === "object" && !Array.isArray(input)) {
-		return {
-			prompt: input.prompt,
-			image: input.image,
-			image2: input.image2,
-			model: input.model
-		};
-	}
-
-	if (looksLikePage && (input === undefined || input === null)) {
-		return {
-			prompt: pageOrInput.prompt,
-			image: pageOrInput.image,
-			image2: pageOrInput.image2,
-			model: pageOrInput.model
-		};
-	}
-
-	return {
-		prompt: input,
-		image,
-		image2,
-		model
-	};
-}
-
-async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
-
+async function ask({ prompt, image, image2, model } = {}) {
 	const apiKey = process.env.GEMINI_API_KEY;
 	if (!apiKey) {
 		throw new Error("Missing environment variable: GEMINI_API_KEY");
 	}
-	const resolvedModel = args.model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+	const resolvedModel = model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 	const parts = [];
-	if (args.image) {
-		const response = await fetch(String(args.image));
-		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${args.image}`);
+	if (image) {
+		const response = await fetch(String(image));
+		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${image}`);
 		const contentType = (response.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
 		const bytes = new Uint8Array(await response.arrayBuffer());
 		parts.push({
@@ -69,9 +29,9 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 			}
 		});
 	}
-	if (args.image2) {
-		const response = await fetch(String(args.image2));
-		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${args.image2}`);
+	if (image2) {
+		const response = await fetch(String(image2));
+		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${image2}`);
 		const contentType = (response.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
 		const bytes = new Uint8Array(await response.arrayBuffer());
 		parts.push({
@@ -81,7 +41,7 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 			}
 		});
 	}
-	parts.push({ text: String(args.prompt || "") });
+	parts.push({ text: String(prompt || "") });
 
 	const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolvedModel)}:generateContent`, {
 		method: "POST",
@@ -112,19 +72,17 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Gemini with grounded web context"
 //#Example=Use web-enabled ask to verify a recent external fact before generating a test plan.
-async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
-
+async function askWeb({ prompt, image, image2, model } = {}) {
 	const apiKey = process.env.GEMINI_API_KEY;
 	if (!apiKey) {
 		throw new Error("Missing environment variable: GEMINI_API_KEY");
 	}
-	const resolvedModel = args.model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+	const resolvedModel = model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 	const parts = [];
-	if (args.image) {
-		const response = await fetch(String(args.image));
-		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${args.image}`);
+	if (image) {
+		const response = await fetch(String(image));
+		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${image}`);
 		const contentType = (response.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
 		const bytes = new Uint8Array(await response.arrayBuffer());
 		parts.push({
@@ -134,9 +92,9 @@ async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, m
 			}
 		});
 	}
-	if (args.image2) {
-		const response = await fetch(String(args.image2));
-		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${args.image2}`);
+	if (image2) {
+		const response = await fetch(String(image2));
+		if (!response.ok) throw new Error(`Failed to fetch image (${response.status}) from: ${image2}`);
 		const contentType = (response.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
 		const bytes = new Uint8Array(await response.arrayBuffer());
 		parts.push({
@@ -146,7 +104,7 @@ async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, m
 			}
 		});
 	}
-	parts.push({ text: String(args.prompt || "") });
+	parts.push({ text: String(prompt || "") });
 
 	const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolvedModel)}:generateContent`, {
 		method: "POST",

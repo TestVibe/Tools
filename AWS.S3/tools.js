@@ -11,25 +11,7 @@ const crypto = require("crypto");
 //#Description=Uploads test artifacts or fixture content to an S3 bucket using PutObject.
 //#ReturnsType=object
 //#ReturnsValue={"bucket":"qa-artifacts","key":"runs/123/trace.zip","eTag":"\"abc123\"","versionId":"3Lg...","contentType":"application/zip","sizeBytes":2048}
-async function uploadArtifact(pageOrInput, inputMaybe) {
-  const {
-    bucket,
-    key,
-    content,
-    contentBase64,
-    contentType,
-    cacheControl,
-    metadata
-  } = normalizeArgs(pageOrInput, inputMaybe, [
-    "bucket",
-    "key",
-    "content",
-    "contentBase64",
-    "contentType",
-    "cacheControl",
-    "metadata"
-  ]);
-
+async function uploadArtifact({ bucket, key, content, contentBase64, contentType, cacheControl, metadata } = {}) {
   const resolvedBucket = resolveBucket(bucket);
   if (!key) {
     throw new Error("Missing required parameter: key");
@@ -74,13 +56,7 @@ async function uploadArtifact(pageOrInput, inputMaybe) {
 //#Description=Downloads content from S3 and returns it as base64, UTF-8 text, or parsed JSON.
 //#ReturnsType=object
 //#ReturnsValue={"bucket":"qa-artifacts","key":"fixtures/user.json","encoding":"json","content":{"name":"Alice"}}
-async function downloadFixture(pageOrInput, inputMaybe) {
-  const {
-    bucket,
-    key,
-    encoding
-  } = normalizeArgs(pageOrInput, inputMaybe, ["bucket", "key", "encoding"]);
-
+async function downloadFixture({ bucket, key, encoding } = {}) {
   const resolvedBucket = resolveBucket(bucket);
   if (!key) {
     throw new Error("Missing required parameter: key");
@@ -114,14 +90,7 @@ async function downloadFixture(pageOrInput, inputMaybe) {
 //#Description=Creates a time-limited presigned PUT URL for uploading an object directly to S3.
 //#ReturnsType=object
 //#ReturnsValue={"bucket":"qa-artifacts","key":"runs/123/video.webm","url":"https://...","method":"PUT","expiresIn":900}
-async function createPresignedUploadUrl(pageOrInput, inputMaybe) {
-  const {
-    bucket,
-    key,
-    expiresIn,
-    contentType
-  } = normalizeArgs(pageOrInput, inputMaybe, ["bucket", "key", "expiresIn", "contentType"]);
-
+async function createPresignedUploadUrl({ bucket, key, expiresIn, contentType } = {}) {
   const resolvedBucket = resolveBucket(bucket);
   if (!key) {
     throw new Error("Missing required parameter: key");
@@ -152,13 +121,7 @@ async function createPresignedUploadUrl(pageOrInput, inputMaybe) {
 //#Description=Creates a time-limited presigned GET URL for downloading an object from S3.
 //#ReturnsType=object
 //#ReturnsValue={"bucket":"qa-artifacts","key":"runs/123/trace.zip","url":"https://...","method":"GET","expiresIn":900}
-async function createPresignedDownloadUrl(pageOrInput, inputMaybe) {
-  const {
-    bucket,
-    key,
-    expiresIn
-  } = normalizeArgs(pageOrInput, inputMaybe, ["bucket", "key", "expiresIn"]);
-
+async function createPresignedDownloadUrl({ bucket, key, expiresIn } = {}) {
   const resolvedBucket = resolveBucket(bucket);
   if (!key) {
     throw new Error("Missing required parameter: key");
@@ -188,13 +151,7 @@ async function createPresignedDownloadUrl(pageOrInput, inputMaybe) {
 //#Description=Deletes an object from S3 by key and optional version ID.
 //#ReturnsType=object
 //#ReturnsValue={"bucket":"qa-artifacts","key":"runs/123/trace.zip","deleted":true}
-async function deleteObject(pageOrInput, inputMaybe) {
-  const {
-    bucket,
-    key,
-    versionId
-  } = normalizeArgs(pageOrInput, inputMaybe, ["bucket", "key", "versionId"]);
-
+async function deleteObject({ bucket, key, versionId } = {}) {
   const resolvedBucket = resolveBucket(bucket);
   if (!key) {
     throw new Error("Missing required parameter: key");
@@ -223,21 +180,7 @@ async function deleteObject(pageOrInput, inputMaybe) {
 //#Description=Lists objects in an S3 bucket, with optional prefix filtering and pagination.
 //#ReturnsType=object
 //#ReturnsValue={"bucket":"qa-artifacts","prefix":"runs/123/","items":[{"key":"runs/123/trace.zip","size":2048}],"isTruncated":false}
-async function listRunArtifacts(pageOrInput, inputMaybe) {
-  const {
-    bucket,
-    prefix,
-    maxKeys,
-    continuationToken,
-    startAfter
-  } = normalizeArgs(pageOrInput, inputMaybe, [
-    "bucket",
-    "prefix",
-    "maxKeys",
-    "continuationToken",
-    "startAfter"
-  ]);
-
+async function listRunArtifacts({ bucket, prefix, maxKeys, continuationToken, startAfter } = {}) {
   const resolvedBucket = resolveBucket(bucket);
   try {
     const query = {
@@ -266,38 +209,6 @@ async function listRunArtifacts(pageOrInput, inputMaybe) {
   } catch (error) {
     throw formatS3Error("ListObjectsV2", error, true);
   }
-}
-
-function looksLikePage(value) {
-  return (
-    value &&
-    typeof value === "object" &&
-    typeof value.goto === "function" &&
-    typeof value.url === "function"
-  );
-}
-
-function pickArgs(source, keys) {
-  const target = {};
-  for (const key of keys) {
-    target[key] = source ? source[key] : undefined;
-  }
-  return target;
-}
-
-function normalizeArgs(pageOrInput, inputMaybe, keys) {
-  if (looksLikePage(pageOrInput)) {
-    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
-      return inputMaybe;
-    }
-    return pickArgs(pageOrInput, keys);
-  }
-
-  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
-    return pageOrInput;
-  }
-
-  return {};
 }
 
 function resolveBucket(bucket) {

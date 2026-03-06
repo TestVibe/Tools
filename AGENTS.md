@@ -16,6 +16,8 @@ Current providers follow this structure (`Anthropic`, `Gemini`, `GitHub`, `Jira`
 - Export tools with CommonJS:
   - `module.exports = { toolA, toolB }`
 - Tool functions should be `async function <name>(...) { ... }`.
+- Prefer a single object parameter for exported tools:
+  - `async function createIssue({ owner, repo, title, body } = {}) { ... }`
 - Keep helper functions private (not exported) unless they are intended tools.
 - Do not hardcode secrets or tokens in source.
 
@@ -27,11 +29,13 @@ Use `//#Key=Value` directives for package- and tool-level metadata.
 - `//#PackageVersion=...`
 - `//#Variables=VAR_ONE,VAR_TWO` (non-secret provider configuration)
 - `//#Secrets=SECRET_ONE,SECRET_TWO` (sensitive provider configuration)
+- Optional: `//#PageBound=true` for providers that require the Playwright page to be injected by the runner.
 - `//#Example=...` (can appear multiple times)
 
 ### Tool-level metadata (place directly above each exported function)
 - `//#Summary=...`
 - `//#Description=...`
+- Optional: `//#Params=paramOne,paramTwo` to declare the user-facing input contract explicitly.
 - `//#ReturnsType=...`
 - `//#ReturnsValue=...`
 - Optional: `//#Example=...`

@@ -4,46 +4,11 @@
 //#Secrets=MANDRILL_API_KEY
 
 //#Example=Send an email with subject "Playwright Run" to notify the team that the smoke run completed.
-function looksLikePage(value) {
-  return (
-    value &&
-    typeof value === "object" &&
-    typeof value.goto === "function" &&
-    typeof value.url === "function"
-  );
-}
-
-function normalizeArgs(pageOrInput, inputMaybe) {
-  if (looksLikePage(pageOrInput)) {
-    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
-      return inputMaybe;
-    }
-
-    return {
-      toEmail: pageOrInput.toEmail,
-      subject: pageOrInput.subject,
-      text: pageOrInput.text
-    };
-  }
-
-  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
-    return pageOrInput;
-  }
-
-  return {};
-}
-
 //#Summary=Send Mandrill email
 //#Description=Sends a transactional email through Mandrill and returns the API delivery result.
 //#ReturnsType=array
 //#ReturnsValue=[{"email":"qa@example.com","status":"sent"}]
-async function sendEmail(pageOrInput, inputMaybe) {
-  const {
-    toEmail,
-    subject,
-    text
-  } = normalizeArgs(pageOrInput, inputMaybe);
-
+async function sendEmail({ toEmail, subject, text } = {}) {
   const apiKey = process.env.MANDRILL_API_KEY;
   const fromEmail = process.env.MANDRILL_FROM;
   if (!apiKey) {

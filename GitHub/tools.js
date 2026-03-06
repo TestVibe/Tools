@@ -8,46 +8,7 @@
 //#Description=Creates a new GitHub issue in a repository.
 //#ReturnsType=object
 //#ReturnsValue={"id":12345,"number":42,"html_url":"https://github.com/owner/repo/issues/42"}
-function looksLikePage(value) {
-  return (
-    value &&
-    typeof value === "object" &&
-    typeof value.goto === "function" &&
-    typeof value.url === "function"
-  );
-}
-
-function pickArgs(source, keys) {
-  const target = {};
-  for (const key of keys) {
-    target[key] = source ? source[key] : undefined;
-  }
-  return target;
-}
-
-function normalizeArgs(pageOrInput, inputMaybe, keys) {
-  if (looksLikePage(pageOrInput)) {
-    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
-      return inputMaybe;
-    }
-    return pickArgs(pageOrInput, keys);
-  }
-
-  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
-    return pageOrInput;
-  }
-
-  return {};
-}
-
-async function createIssue(pageOrInput, inputMaybe) {
-  const {
-  owner,
-  repo,
-  title,
-  body,
-  labels
-  } = normalizeArgs(pageOrInput, inputMaybe, ["owner", "repo", "title", "body", "labels"]);
+async function createIssue({ owner, repo, title, body, labels } = {}) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     throw new Error("Missing environment variable: GITHUB_TOKEN");
@@ -80,13 +41,7 @@ async function createIssue(pageOrInput, inputMaybe) {
 //#Description=Adds a comment to an existing GitHub issue.
 //#ReturnsType=object
 //#ReturnsValue={"id":98765,"html_url":"https://github.com/owner/repo/issues/42#issuecomment-98765"}
-async function appendToIssue(pageOrInput, inputMaybe) {
-  const {
-  owner,
-  repo,
-  issue_number,
-  body
-  } = normalizeArgs(pageOrInput, inputMaybe, ["owner", "repo", "issue_number", "body"]);
+async function appendToIssue({ owner, repo, issue_number, body } = {}) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     throw new Error("Missing environment variable: GITHUB_TOKEN");

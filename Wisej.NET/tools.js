@@ -1,22 +1,19 @@
 //#PackageDescription=Wisej.NET provider tools for UI automation and interaction helpers.
+//#PageBound=true
 //#PackageVersion=1.0.0
-function resolvePageAndInput(args) {
-	const [first, second] = args;
-	const page = first && typeof first.evaluate === "function"
-		? first
-		: second && typeof second.evaluate === "function"
-			? second
-			: null;
-
-	if (!page)
-		throw new Error("Playwright page context was not provided.");
-
-	const input = page === first ? (second ?? {}) : (first ?? {});
-	return { page, input };
+function resolvePageBoundInput(input) {
+	const payload = input && typeof input === "object" && !Array.isArray(input)
+		? input
+		: {};
+	const page = payload.__testvibePage;
+	if (!page || typeof page.evaluate !== "function") {
+		throw new Error("Playwright page context was not provided. This tool must be invoked through page.wisej_net.<tool>(...).");
+	}
+	return { page, input: payload };
 }
 
-async function invokeWisejHelper(helperName, args) {
-	const { page, input } = resolvePageAndInput(args);
+async function invokeWisejHelper(helperName, input) {
+	const { page, input: payload } = resolvePageBoundInput(input);
 
 	return page.evaluate(
 		({ helperName, payload }) => {
@@ -26,7 +23,7 @@ async function invokeWisejHelper(helperName, args) {
 			}
 			return helpers[helperName](payload);
 		},
-		{ helperName, payload: input }
+		{ helperName, payload }
 	);
 }
 
@@ -36,8 +33,9 @@ async function invokeWisejHelper(helperName, args) {
 //#Description=Opens a Wisej ComboBox popup by id, ariaLabel, or selector.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","opened":true}
-async function comboboxOpen(...args) {
-	return invokeWisejHelper("comboboxOpen", args);
+//#Params=id,selector,ariaLabel
+async function comboboxOpen(input = {}) {
+	return invokeWisejHelper("comboboxOpen", input);
 }
 
 //#Example=Close ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -45,8 +43,9 @@ async function comboboxOpen(...args) {
 //#Description=Closes a Wisej ComboBox popup by id, ariaLabel, or selector.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","closed":true}
-async function comboboxClose(...args) {
-	return invokeWisejHelper("comboboxClose", args);
+//#Params=id,selector,ariaLabel
+async function comboboxClose(input = {}) {
+	return invokeWisejHelper("comboboxClose", input);
 }
 
 //#Example=Set ComboBox value: { ariaLabel: "luConfirmedFilter", value: "Williamson, Ryan" }.
@@ -54,8 +53,9 @@ async function comboboxClose(...args) {
 //#Description=Sets the text value of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
-async function comboboxSetValue(...args) {
-	return invokeWisejHelper("comboboxSetValue", args);
+//#Params=id,selector,ariaLabel,value
+async function comboboxSetValue(input = {}) {
+	return invokeWisejHelper("comboboxSetValue", input);
 }
 
 //#Example=Get ComboBox value by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -63,8 +63,9 @@ async function comboboxSetValue(...args) {
 //#Description=Gets the current text value of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
-async function comboboxGetValue(...args) {
-	return invokeWisejHelper("comboboxGetValue", args);
+//#Params=id,selector,ariaLabel
+async function comboboxGetValue(input = {}) {
+	return invokeWisejHelper("comboboxGetValue", input);
 }
 
 //#Example=Set selected index: { selector: "[aria-label=\"luConfirmedFilter\"]", index: 2 }.
@@ -72,8 +73,9 @@ async function comboboxGetValue(...args) {
 //#Description=Sets the selected item index of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
-async function comboboxSetSelectedIndex(...args) {
-	return invokeWisejHelper("comboboxSetSelectedIndex", args);
+//#Params=id,selector,ariaLabel,index
+async function comboboxSetSelectedIndex(input = {}) {
+	return invokeWisejHelper("comboboxSetSelectedIndex", input);
 }
 
 //#Example=Get selected index by ariaLabel: { ariaLabel: "luConfirmedFilter" }.
@@ -81,8 +83,9 @@ async function comboboxSetSelectedIndex(...args) {
 //#Description=Gets the selected item index of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selectedIndex":2}
-async function comboboxGetSelectedIndex(...args) {
-	return invokeWisejHelper("comboboxGetSelectedIndex", args);
+//#Params=id,selector,ariaLabel
+async function comboboxGetSelectedIndex(input = {}) {
+	return invokeWisejHelper("comboboxGetSelectedIndex", input);
 }
 
 //#Example=Set text selection: { selector: "[aria-label=\"luConfirmedFilter\"]", start: 0, length: 5 }.
@@ -90,8 +93,9 @@ async function comboboxGetSelectedIndex(...args) {
 //#Description=Sets text selection range in the editable portion of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
-async function comboboxSetSelection(...args) {
-	return invokeWisejHelper("comboboxSetSelection", args);
+//#Params=id,selector,ariaLabel,start,length
+async function comboboxSetSelection(input = {}) {
+	return invokeWisejHelper("comboboxSetSelection", input);
 }
 
 //#Example=Get text selection by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
@@ -99,8 +103,9 @@ async function comboboxSetSelection(...args) {
 //#Description=Gets text selection range from the editable portion of a Wisej ComboBox.
 //#ReturnsType=object
 //#ReturnsValue={"id":"luConfirmedFilter","selection":{"start":0,"length":5}}
-async function comboboxGetSelection(...args) {
-	return invokeWisejHelper("comboboxGetSelection", args);
+//#Params=id,selector,ariaLabel
+async function comboboxGetSelection(input = {}) {
+	return invokeWisejHelper("comboboxGetSelection", input);
 }
 
 //#Example=Scroll list to index: { id: "listBox1", index: 120 }.
@@ -108,8 +113,9 @@ async function comboboxGetSelection(...args) {
 //#Description=Scrolls a Wisej list control to ensure the specified item index is visible.
 //#ReturnsType=object
 //#ReturnsValue={"id":"listBox1","index":120,"topIndex":120}
-async function listScrollToIndex(...args) {
-	return invokeWisejHelper("listScrollToIndex", args);
+//#Params=id,selector,ariaLabel,index
+async function listScrollToIndex(input = {}) {
+	return invokeWisejHelper("listScrollToIndex", input);
 }
 
 //#Example=Select list item by index: { selector: "[aria-label=\"listBox1\"]", index: 3 }.
@@ -118,8 +124,9 @@ async function listScrollToIndex(...args) {
 //#Description=Selects an item in a Wisej list control by index or text.
 //#ReturnsType=object
 //#ReturnsValue={"id":"listBox1","index":3,"selectedIndices":[3]}
-async function listSelectItem(...args) {
-	return invokeWisejHelper("listSelectItem", args);
+//#Params=id,selector,ariaLabel,index,text,exact
+async function listSelectItem(input = {}) {
+	return invokeWisejHelper("listSelectItem", input);
 }
 
 //#Example=Get list viewport info: { id: "listBox1" }.
@@ -127,8 +134,9 @@ async function listSelectItem(...args) {
 //#Description=Returns viewport and selection information for a Wisej list control.
 //#ReturnsType=object
 //#ReturnsValue={"id":"listBox1","totalCount":500,"topIndex":120,"visibleCount":12}
-async function listGetViewportInfo(...args) {
-	return invokeWisejHelper("listGetViewportInfo", args);
+//#Params=id,selector,ariaLabel
+async function listGetViewportInfo(input = {}) {
+	return invokeWisejHelper("listGetViewportInfo", input);
 }
 
 //#Example=Scroll DataGrid to cell: { id: "dataGridView1", row: 120, col: 4 }.
@@ -136,8 +144,9 @@ async function listGetViewportInfo(...args) {
 //#Description=Scrolls a Wisej DataGrid to ensure the specified cell is visible.
 //#ReturnsType=object
 //#ReturnsValue={"id":"dataGridView1","row":120,"col":4}
-async function dataGridScrollToCell(...args) {
-	return invokeWisejHelper("dataGridScrollToCell", args);
+//#Params=id,selector,ariaLabel,row,col
+async function dataGridScrollToCell(input = {}) {
+	return invokeWisejHelper("dataGridScrollToCell", input);
 }
 
 //#Example=Focus DataGrid cell: { id: "dataGridView1", row: 120, col: 4 }.
@@ -145,8 +154,9 @@ async function dataGridScrollToCell(...args) {
 //#Description=Moves focus to a specific Wisej DataGrid cell.
 //#ReturnsType=object
 //#ReturnsValue={"id":"dataGridView1","row":120,"col":4}
-async function dataGridFocusCell(...args) {
-	return invokeWisejHelper("dataGridFocusCell", args);
+//#Params=id,selector,ariaLabel,row,col
+async function dataGridFocusCell(input = {}) {
+	return invokeWisejHelper("dataGridFocusCell", input);
 }
 
 //#Example=Edit DataGrid cell: { id: "dataGridView1", row: 120, col: 4, value: "Done", commit: true }.
@@ -154,8 +164,9 @@ async function dataGridFocusCell(...args) {
 //#Description=Edits a Wisej DataGrid cell and optionally commits the edit.
 //#ReturnsType=object
 //#ReturnsValue={"id":"dataGridView1","row":120,"col":4,"value":"Done","committed":true}
-async function dataGridEditCell(...args) {
-	return invokeWisejHelper("dataGridEditCell", args);
+//#Params=id,selector,ariaLabel,row,col,value,commit
+async function dataGridEditCell(input = {}) {
+	return invokeWisejHelper("dataGridEditCell", input);
 }
 
 //#Example=Get DataGrid cell value: { id: "dataGridView1", row: 120, col: 4 }.
@@ -163,8 +174,9 @@ async function dataGridEditCell(...args) {
 //#Description=Gets the current value from a Wisej DataGrid cell using the table model.
 //#ReturnsType=object
 //#ReturnsValue={"id":"dataGridView1","row":120,"col":4,"value":"Done"}
-async function dataGridGetCellValue(...args) {
-	return invokeWisejHelper("dataGridGetCellValue", args);
+//#Params=id,selector,ariaLabel,row,col
+async function dataGridGetCellValue(input = {}) {
+	return invokeWisejHelper("dataGridGetCellValue", input);
 }
 
 //#Example=Get DataGrid viewport info: { id: "dataGridView1" }.
@@ -172,8 +184,9 @@ async function dataGridGetCellValue(...args) {
 //#Description=Returns viewport, focus, and row count information for a Wisej DataGrid.
 //#ReturnsType=object
 //#ReturnsValue={"id":"dataGridView1","rowCount":1000,"firstVisibleRow":120,"visibleRowCount":20}
-async function dataGridGetViewportInfo(...args) {
-	return invokeWisejHelper("dataGridGetViewportInfo", args);
+//#Params=id,selector,ariaLabel
+async function dataGridGetViewportInfo(input = {}) {
+	return invokeWisejHelper("dataGridGetViewportInfo", input);
 }
 
 module.exports = {

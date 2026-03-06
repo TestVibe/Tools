@@ -9,33 +9,6 @@
 //#Description=Sends a prompt with optional images to OpenAI and returns text output.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from OpenAI"
-function normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const looksLikePage =
-		pageOrInput &&
-		typeof pageOrInput === "object" &&
-		typeof pageOrInput.goto === "function" &&
-		typeof pageOrInput.url === "function";
-
-	const input = looksLikePage ? inputOrImage : pageOrInput;
-	const image = looksLikePage ? imageOrImage2 : inputOrImage;
-	const image2 = looksLikePage ? image2OrModel : imageOrImage2;
-	const model = looksLikePage ? modelMaybe : image2OrModel;
-
-	return (input && typeof input === "object" && !Array.isArray(input))
-		? {
-			prompt: input.prompt,
-			image: input.image,
-			image2: input.image2,
-			model: input.model
-		}
-		: {
-			prompt: input,
-			image,
-			image2,
-			model
-		};
-}
-
 function extractTextResponse(data) {
 	const textParts = [];
 	for (const item of data.output ?? []) {
@@ -97,9 +70,8 @@ async function requestOpenAI(args, useWebSearch) {
 	return extractTextResponse(data);
 }
 
-async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
-	return requestOpenAI(args, false);
+async function ask({ prompt, image, image2, model } = {}) {
+	return requestOpenAI({ prompt, image, image2, model }, false);
 }
 
 //#Summary=OpenAI ask web
@@ -107,9 +79,8 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from OpenAI with web-grounded info"
 //#Example=Use web-enabled ask to fetch the latest release notes for a dependency before running upgrade tests.
-async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
-	return requestOpenAI(args, true);
+async function askWeb({ prompt, image, image2, model } = {}) {
+	return requestOpenAI({ prompt, image, image2, model }, true);
 }
 
 module.exports = {

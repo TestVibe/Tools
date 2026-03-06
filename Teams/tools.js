@@ -7,44 +7,7 @@
 //#Description=Posts a plain text message to a Microsoft Teams Incoming Webhook URL.
 //#ReturnsType=string
 //#ReturnsValue="Webhook response body, usually '1' on success"
-function looksLikePage(value) {
-  return (
-    value &&
-    typeof value === "object" &&
-    typeof value.goto === "function" &&
-    typeof value.url === "function"
-  );
-}
-
-function pickArgs(source, keys) {
-  const target = {};
-  for (const key of keys) {
-    target[key] = source ? source[key] : undefined;
-  }
-  return target;
-}
-
-function normalizeArgs(pageOrInput, inputMaybe, keys) {
-  if (looksLikePage(pageOrInput)) {
-    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
-      return inputMaybe;
-    }
-    return pickArgs(pageOrInput, keys);
-  }
-
-  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
-    return pageOrInput;
-  }
-
-  return {};
-}
-
-async function postMessage(pageOrInput, inputMaybe) {
-  const {
-  text,
-  webhookUrl,
-  maxRetries
-  } = normalizeArgs(pageOrInput, inputMaybe, ["text", "webhookUrl", "maxRetries"]);
+async function postMessage({ text, webhookUrl, maxRetries } = {}) {
   const url = resolveWebhookUrl(webhookUrl);
   if (!text) {
     throw new Error("Missing required parameter: text");
@@ -58,15 +21,7 @@ async function postMessage(pageOrInput, inputMaybe) {
 //#Description=Posts an Adaptive Card attachment to a Microsoft Teams Incoming Webhook URL.
 //#ReturnsType=string
 //#ReturnsValue="Webhook response body, usually '1' on success"
-async function postAdaptiveCard(pageOrInput, inputMaybe) {
-  const {
-  title,
-  text,
-  facts,
-  webhookUrl,
-  cardVersion,
-  maxRetries
-  } = normalizeArgs(pageOrInput, inputMaybe, ["title", "text", "facts", "webhookUrl", "cardVersion", "maxRetries"]);
+async function postAdaptiveCard({ title, text, facts, webhookUrl, cardVersion, maxRetries } = {}) {
   const url = resolveWebhookUrl(webhookUrl);
 
   const normalizedFacts = Array.isArray(facts)

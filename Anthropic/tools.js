@@ -9,67 +9,27 @@
 //#Description=Sends a prompt with optional images to Anthropic and returns text output.
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Anthropic"
-function normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const looksLikePage =
-		pageOrInput &&
-		typeof pageOrInput === "object" &&
-		typeof pageOrInput.goto === "function" &&
-		typeof pageOrInput.url === "function";
-
-	const input = looksLikePage ? inputOrImage : pageOrInput;
-	const image = looksLikePage ? imageOrImage2 : inputOrImage;
-	const image2 = looksLikePage ? image2OrModel : imageOrImage2;
-	const model = looksLikePage ? modelMaybe : image2OrModel;
-
-	if (input && typeof input === "object" && !Array.isArray(input)) {
-		return {
-			prompt: input.prompt,
-			image: input.image,
-			image2: input.image2,
-			model: input.model
-		};
-	}
-
-	if (looksLikePage && (input === undefined || input === null)) {
-		return {
-			prompt: pageOrInput.prompt,
-			image: pageOrInput.image,
-			image2: pageOrInput.image2,
-			model: pageOrInput.model
-		};
-	}
-
-	return {
-		prompt: input,
-		image,
-		image2,
-		model
-	};
-}
-
-async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
-
+async function ask({ prompt, image, image2, model } = {}) {
 	const apiKey = process.env.ANTHROPIC_API_KEY;
 	if (!apiKey) {
 		throw new Error("Missing environment variable: ANTHROPIC_API_KEY");
 	}
-	const resolvedModel = args.model || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+	const resolvedModel = model || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
 
 	const content = [];
-	if (args.image) {
+	if (image) {
 		content.push({
 			type: "image",
-			source: { type: "url", url: String(args.image) }
+			source: { type: "url", url: String(image) }
 		});
 	}
-	if (args.image2) {
+	if (image2) {
 		content.push({
 			type: "image",
-			source: { type: "url", url: String(args.image2) }
+			source: { type: "url", url: String(image2) }
 		});
 	}
-	content.push({ type: "text", text: String(args.prompt || "") });
+	content.push({ type: "text", text: String(prompt || "") });
 
 	const response = await fetch("https://api.anthropic.com/v1/messages", {
 		method: "POST",
@@ -106,29 +66,27 @@ async function ask(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, mode
 //#ReturnsType=string
 //#ReturnsValue="Plain-text response from Anthropic with web results"
 //#Example=Use web-enabled ask to verify a current external fact needed by the test scenario.
-async function askWeb(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe) {
-	const args = normalizeArgs(pageOrInput, inputOrImage, imageOrImage2, image2OrModel, modelMaybe);
-
+async function askWeb({ prompt, image, image2, model } = {}) {
 	const apiKey = process.env.ANTHROPIC_API_KEY;
 	if (!apiKey) {
 		throw new Error("Missing environment variable: ANTHROPIC_API_KEY");
 	}
-	const resolvedModel = args.model || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+	const resolvedModel = model || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
 
 	const content = [];
-	if (args.image) {
+	if (image) {
 		content.push({
 			type: "image",
-			source: { type: "url", url: String(args.image) }
+			source: { type: "url", url: String(image) }
 		});
 	}
-	if (args.image2) {
+	if (image2) {
 		content.push({
 			type: "image",
-			source: { type: "url", url: String(args.image2) }
+			source: { type: "url", url: String(image2) }
 		});
 	}
-	content.push({ type: "text", text: String(args.prompt || "") });
+	content.push({ type: "text", text: String(prompt || "") });
 
 	const response = await fetch("https://api.anthropic.com/v1/messages", {
 		method: "POST",

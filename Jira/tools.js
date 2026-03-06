@@ -8,52 +8,7 @@
 //#Description=Creates a Jira issue using Jira Cloud REST API v3.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001"}
-function looksLikePage(value) {
-  return (
-    value &&
-    typeof value === "object" &&
-    typeof value.goto === "function" &&
-    typeof value.url === "function"
-  );
-}
-
-function pickArgs(source, keys) {
-  const target = {};
-  for (const key of keys) {
-    target[key] = source ? source[key] : undefined;
-  }
-  return target;
-}
-
-function normalizeArgs(pageOrInput, inputMaybe, keys) {
-  if (looksLikePage(pageOrInput)) {
-    if (inputMaybe && typeof inputMaybe === "object" && !Array.isArray(inputMaybe)) {
-      return inputMaybe;
-    }
-    return pickArgs(pageOrInput, keys);
-  }
-
-  if (pageOrInput && typeof pageOrInput === "object" && !Array.isArray(pageOrInput)) {
-    return pageOrInput;
-  }
-
-  return {};
-}
-
-async function createIssue(pageOrInput, inputMaybe) {
-  const {
-  projectKey,
-  projectId,
-  issueType,
-  issueTypeId,
-  summary,
-  description,
-  labels,
-  assigneeAccountId,
-  parentKey,
-  priority,
-  fields
-  } = normalizeArgs(pageOrInput, inputMaybe, ["projectKey", "projectId", "issueType", "issueTypeId", "summary", "description", "labels", "assigneeAccountId", "parentKey", "priority", "fields"]);
+async function createIssue({ projectKey, projectId, issueType, issueTypeId, summary, description, labels, assigneeAccountId, parentKey, priority, fields } = {}) {
   if (!summary) {
     throw new Error("Missing required parameter: summary");
   }
@@ -118,12 +73,7 @@ async function createIssue(pageOrInput, inputMaybe) {
 //#Description=Adds a comment to an existing Jira issue.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
-async function appendToIssue(pageOrInput, inputMaybe) {
-  const {
-  issueKey,
-  body,
-  visibility
-  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "body", "visibility"]);
+async function appendToIssue({ issueKey, body, visibility } = {}) {
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
@@ -149,12 +99,7 @@ async function appendToIssue(pageOrInput, inputMaybe) {
 //#Description=Adds a plain-text comment to an issue and converts it to Jira ADF automatically.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10010","self":"https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10010"}
-async function appendPlainComment(pageOrInput, inputMaybe) {
-  const {
-  issueKey,
-  text,
-  visibility
-  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "text", "visibility"]);
+async function appendPlainComment({ issueKey, text, visibility } = {}) {
   if (text === undefined || text === null || String(text).length === 0) {
     throw new Error("Missing required parameter: text");
   }
@@ -171,14 +116,7 @@ async function appendPlainComment(pageOrInput, inputMaybe) {
 //#Description=Transitions a Jira issue to a new workflow state.
 //#ReturnsType=object
 //#ReturnsValue={"ok":true}
-async function transitionIssue(pageOrInput, inputMaybe) {
-  const {
-  issueKey,
-  transitionId,
-  comment,
-  fields,
-  update
-  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "transitionId", "comment", "fields", "update"]);
+async function transitionIssue({ issueKey, transitionId, comment, fields, update } = {}) {
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
@@ -221,15 +159,7 @@ async function transitionIssue(pageOrInput, inputMaybe) {
 //#Description=Searches Jira issues with JQL. Uses enhanced search endpoint with fallback for compatibility.
 //#ReturnsType=object
 //#ReturnsValue={"issues":[{"key":"QA-123"}],"maxResults":50}
-async function searchIssues(pageOrInput, inputMaybe) {
-  const {
-  jql,
-  maxResults,
-  fields,
-  nextPageToken,
-  reconcileIssues,
-  startAt
-  } = normalizeArgs(pageOrInput, inputMaybe, ["jql", "maxResults", "fields", "nextPageToken", "reconcileIssues", "startAt"]);
+async function searchIssues({ jql, maxResults, fields, nextPageToken, reconcileIssues, startAt } = {}) {
   if (!jql) {
     throw new Error("Missing required parameter: jql");
   }
@@ -273,13 +203,7 @@ async function searchIssues(pageOrInput, inputMaybe) {
 //#Description=Retrieves a Jira issue by key or ID.
 //#ReturnsType=object
 //#ReturnsValue={"id":"10001","key":"QA-123","fields":{"summary":"Smoke run failed"}}
-async function getIssue(pageOrInput, inputMaybe) {
-  const {
-  issueKey,
-  fields,
-  expand,
-  properties
-  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "fields", "expand", "properties"]);
+async function getIssue({ issueKey, fields, expand, properties } = {}) {
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
@@ -299,11 +223,7 @@ async function getIssue(pageOrInput, inputMaybe) {
 //#Description=Gets available workflow transitions for an issue.
 //#ReturnsType=object
 //#ReturnsValue={"transitions":[{"id":"31","name":"Done"}]}
-async function listTransitions(pageOrInput, inputMaybe) {
-  const {
-  issueKey,
-  expandFields
-  } = normalizeArgs(pageOrInput, inputMaybe, ["issueKey", "expandFields"]);
+async function listTransitions({ issueKey, expandFields } = {}) {
   if (!issueKey) {
     throw new Error("Missing required parameter: issueKey");
   }
