@@ -177,15 +177,10 @@
 		}
 
 		if (typeof list.setFocusedItem === "function") {
+			// Wisej list views update selection as part of focusing the item.
+			// Calling setSelectionRanges from client-side automation can cross the
+			// server callback bridge and trigger "Unknown function" exceptions.
 			list.setFocusedItem(index, true);
-			if (typeof list.setSelectionRanges === "function") {
-				try {
-					list.setSelectionRanges([{ minIndex: index, maxIndex: index }]);
-				}
-				catch {
-					// Keep focused item if explicit range shape is not accepted.
-				}
-			}
 			return;
 		}
 
