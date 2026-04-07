@@ -856,19 +856,14 @@
 		let component = core.getComponent(target);
 		if (component) return component;
 
-		// If direct lookup fails, treat target as an aria-label and resolve via DOM.
-		const ariaSelector = `[aria-label="${escapeAttribute(target)}"]`;
-		const ariaElement = querySelectorElement(ariaSelector);
-		if (ariaElement) {
-			component = resolveComponentFromElement(core, ariaElement);
-			if (component) return component;
-		}
+		// If direct lookup fails, treat target as a DOM-facing label/name/test id and resolve via DOM.
+		for (const selector of buildTargetSelectors(target)) {
+			const element = querySelectorElement(selector);
+			if (!element) {
+				continue;
+			}
 
-		// Finally, treat target as a raw id selector.
-		const idSelector = `#${escapeCssId(target)}`;
-		const idElement = querySelectorElement(idSelector);
-		if (idElement) {
-			component = resolveComponentFromElement(core, idElement);
+			component = resolveComponentFromElement(core, element);
 			if (component) return component;
 		}
 
@@ -949,6 +944,32 @@
 		}
 
 		return doc.querySelector(selector);
+	}
+
+	function buildTargetSelectors(target) {
+		const value = String(target || "").trim();
+		if (!value) {
+			return [];
+		}
+
+		const selectors = [];
+		const seen = new Set();
+		const push = (selector) => {
+			if (!selector || seen.has(selector)) {
+				return;
+			}
+
+			seen.add(selector);
+			selectors.push(selector);
+		};
+
+		push(`[aria-label="${escapeAttribute(value)}"]`);
+		push(`[data-wisej-id="${escapeAttribute(value)}"]`);
+		push(`[data-testid="${escapeAttribute(value)}"]`);
+		push(`[name="${escapeAttribute(value)}"]`);
+		push(`#${escapeCssId(value)}`);
+
+		return selectors;
 	}
 
 	function escapeAttribute(value) {
