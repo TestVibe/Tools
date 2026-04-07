@@ -242,6 +242,469 @@
 		return false;
 	}
 
+	function normalizeLookupText(value) {
+		return String(value == null ? "" : value)
+			trim()
+			replace(/\s+/g, " ")
+			.toLowerCase();
+	}
+
+	function matchesLookupText(candidate, expected, exact) {
+		const candidateText = normalizeLookupText(candidate);
+		const expectedText = normalizeLookupText(expected);
+
+		if (!candidateText || !expectedText) {
+			return false;
+		}
+
+		return exact ? candidateText === expectedText : candidateText.indexOf(expectedText) > -1;
+	}
+
+	function getListItemText(item) {
+		return getListLabel(item);
+	}
+
+	function isListSelectionControl(list) {
+		if (!list) {
+			return false;
+		}
+
+		const className = getClassName(list);
+		return className.indexOf("List") > -1
+			|| typeof list.setSelectionIndices === "function"
+			|| typeof list.setFocusedItem === "function"
+			|| typeof list.scrollIntoView === "function"
+			|| typeof list.setTopIndex === "function";
+	}
+
+	function findListIndexByLookupText(list, text, exact) {
+		if (typeof text !== "string" || text.length === 0) {
+			throw new Error("Parameter 'text' must be a non-empty string.");
+		}
+
+		if (typeof list.getModel !== "function") {
+			throw new Error("Text lookup is supported only for list controls exposing a model.");
+		}
+
+		const model = list.getModel();
+		if (!model || typeof model.getLength !== "function" || typeof model.getItem !== "function") {
+			throw new Error("Unable to inspect list model.");
+		}
+
+		const length = model.getLength();
+		for (let i = 0; i < length; i++) {
+			const item = model.getItem(i);
+			const label = getListItemText(item);
+			if (!matchesLookupText(label, text, exact)) {
+				continue;
+			}
+
+			return {
+				index: i,
+				text: label
+			};
+		}
+
+		return null;
+	}
+
+	function getDataGridTableModel(grid) {
+		const model = typeof grid?.getTableModel === "function" ? grid.getTableModel() : null;
+		if (!model || typeof model.getValue !== "function") {
+			throw new Error("Unable to inspect DataGrid table model.");
+		}
+
+		return model;
+	}
+
+	function getDataGridRowCount(grid, model) {
+		if (typeof grid?.getRowCount === "function") {
+			return grid.getRowCount();
+		}
+		if (typeof model?.getRowCount === "function") {
+			return model.getRowCount();
+		}
+		return null;
+	}
+
+	function getDataGridColumnCount(grid, model) {
+		if (typeof model?.getColumnCount === "function") {
+			return model.getColumnCount();
+		}
+		if (typeof grid?.getColumnCount === "function") {
+			return grid.getColumnCount();
+		}
+		return null;
+	}
+
+	function getGridCellText(value) {
+		if (value == null) {
+			return null;
+		}
+
+		if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+			return String(value);
+		}
+
+		if (typeof value === "object") {
+			for (const key of ["label", "text", "name", "value", "caption"]) {
+				const candidate = value[key];
+				if (candidate != null && candidate !== "") {
+					return String(candidate);
+				}
+			}
+		}
+
+		return String(value);
+	}
+
+	function findDataGridCellByText(grid, text, exact, columns) {
+		if (typeof text !== "string" || text.length === 0) {
+			throw new Error("Parameter 'text' must be a non-empty string.");
+		}
+
+		const model = getDataGridTableModel(grid);
+		const rowCount = getDataGridRowCount(grid, model);
+		const columnCount = getDataGridColumnCount(grid, model);
+		if (!Number.isInteger(rowCount) || rowCount < 0 || !Number.isInteger(columnCount) || columnCount < 0) {
+			throw new Error("Unable to determine DataGrid dimensions.");
+		}
+
+		const searchColumns = Array.isArray(columns) && columns.length > 0
+			? columns
+			: Array.from({ length: columnCount }, (_, index) => index);
+
+		for (let row = 0; row < rowCount; row++) {
+			for (const col of searchColumns) {
+				if (!Number.isInteger(col) || col < 0 || col >= columnCount) {
+					continue;
+				}
+
+				const cellText = getGridCellText(model.getValue(col, row));
+				if (!matchesLookupText(cellText, text, exact)) {
+					continue;
+				}
+
+				return {
+					row,
+					col,
+					text: cellText
+				};
+			}
+		}
+
+		return null;
+	}
+
+	function getDomElement(handle) {
+		if (!handle) {
+			return null;
+		}
+		if (handle instanceof Element) {
+			return handle;
+		}
+		if (typeof handle.getDomElement === "function") {
+			return handle.getDomElement();
+		}
+		return null;
+	}
+
+	function getWidgetDomElement(widget) {
+		if (!widget) {
+			return null;
+		}
+
+		for (const methodName of ["getContentElement", "getContainerElement", "getFocusElement"]) {
+			if (typeof widget[methodName] !== "function") {
+				continue;
+			}
+
+			const dom = getDomElement(widget[methodName]());
+			if (dom) {
+				return dom;
+			}
+		}
+
+		return null;
+	}
+
+	function getComboSearchRoots(combo, ...widgets) {
+		const roots = [];
+		const seen = new Set();
+
+		for (const widget of [combo, ...widgets]) {
+			const dom = getWidgetDomElement(widget);
+			if (!dom || seen.has(dom)) {
+				continue;
+			}
+
+			seen.add(dom);
+			roots.push(dom);
+		}
+
+		return roots;
+	}
+
+	function findClickableTextElement(root, text, exact) {
+		if (!root || typeof root.querySelectorAll !== "function") {
+			return null;
+		}
+
+		let best = null;
+		const nodes = root.querySelectorAll("*");
+		for (const node of nodes) {
+			const rawText = typeof node.innerText === "string" && node.innerText.trim().length > 0
+				? node.innerText
+				: node.textContent;
+			if (!matchesLookupText(rawText, text, exact)) {
+				continue;
+			}
+
+			const rect = typeof node.getBoundingClientRect === "function" ? node.getBoundingClientRect() : null;
+			if (!rect || rect.width <= 0 || rect.height <= 0) {
+				continue;
+			}
+
+			const score = String(rawText).trim().length;
+			if (!best || score < best.score) {
+				best = { node, score };
+			}
+		}
+
+		return best?.node || null;
+	}
+
+	function dispatchClick(element) {
+		if (!element || typeof element.dispatchEvent !== "function") {
+			return false;
+		}
+
+		const rect = typeof element.getBoundingClientRect === "function"
+			? element.getBoundingClientRect()
+			: { left: 0, top: 0, width: 0, height: 0 };
+		const clientX = rect.left + Math.max(1, Math.min(rect.width / 2, rect.width - 1));
+		const clientY = rect.top + Math.max(1, Math.min(rect.height / 2, rect.height - 1));
+		const mouseOptions = {
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+			button: 0,
+			buttons: 1,
+			clientX,
+			clientY,
+			view: globalThis.window || null
+		};
+
+		if (typeof globalThis.PointerEvent === "function") {
+			const pointerOptions = {
+				...mouseOptions,
+				pointerId: 1,
+				pointerType: "mouse",
+				isPrimary: true
+			};
+			element.dispatchEvent(new PointerEvent("pointerdown", pointerOptions));
+		}
+
+		element.dispatchEvent(new MouseEvent("mousedown", mouseOptions));
+
+		if (typeof globalThis.PointerEvent === "function") {
+			element.dispatchEvent(new PointerEvent("pointerup", {
+				...mouseOptions,
+				buttons: 0,
+				pointerId: 1,
+				pointerType: "mouse",
+				isPrimary: true
+			}));
+		}
+
+		element.dispatchEvent(new MouseEvent("mouseup", { ...mouseOptions, buttons: 0 }));
+		element.dispatchEvent(new MouseEvent("click", { ...mouseOptions, buttons: 0, detail: 1 }));
+		if (typeof element.click === "function") {
+			element.click();
+		}
+
+		return true;
+	}
+
+	function wait(timeoutMs) {
+		return new Promise((resolve) => globalThis.setTimeout(resolve, timeoutMs));
+	}
+
+	async function flushUi(frames = 2) {
+		for (let i = 0; i < frames; i++) {
+			await new Promise((resolve) => globalThis.requestAnimationFrame(resolve));
+		}
+	}
+
+	async function waitForCondition(predicate, options = {}) {
+		const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 2000;
+		const intervalMs = Number.isFinite(options.intervalMs) ? options.intervalMs : 50;
+		const started = Date.now();
+
+		while (Date.now() - started <= timeoutMs) {
+			const result = predicate();
+			if (result) {
+				return result;
+			}
+
+			await wait(intervalMs);
+		}
+
+		return null;
+	}
+
+	function resolveComboDropDownList(combo) {
+		return typeof combo?.getDropDownList === "function" ? combo.getDropDownList() : null;
+	}
+
+	function resolveComboDropDownGrid(combo) {
+		const directDropDown = typeof combo?.getDropDown === "function" ? combo.getDropDown() : null;
+		if (directDropDown && typeof directDropDown.getTableModel === "function") {
+			return directDropDown;
+		}
+
+		const list = resolveComboDropDownList(combo);
+		if (list && typeof list.getTableModel === "function") {
+			return list;
+		}
+
+		return null;
+	}
+
+	function trySelectComboByIndex(combo, index) {
+		if (typeof combo?.setSelectedIndex !== "function" || typeof combo?.getSelectedIndex !== "function") {
+			return false;
+		}
+
+		combo.setSelectedIndex(index);
+		return combo.getSelectedIndex() === index;
+	}
+
+	async function ensureComboOpened(combo, timeoutMs) {
+		if (typeof combo?.open === "function") {
+			combo.open();
+		}
+
+		await flushUi();
+		await waitForCondition(() => {
+			if (typeof combo?.isDroppedDown === "function") {
+				return combo.isDroppedDown();
+			}
+
+			return resolveComboDropDownList(combo) || resolveComboDropDownGrid(combo);
+		}, { timeoutMs, intervalMs: 25 });
+	}
+
+	async function selectComboItemFromList(combo, list, lookup, options) {
+		const match = findListIndexByLookupText(list, lookup.text, options.exact);
+		if (!match) {
+			return null;
+		}
+
+		const indexSelected = trySelectComboByIndex(combo, match.index);
+		if (!indexSelected) {
+			setListSelectionByIndex(list, match.index);
+			if (typeof combo?.setValue === "function") {
+				combo.setValue(match.text);
+			}
+		}
+
+		if (typeof combo?.close === "function") {
+			combo.close();
+		}
+
+		return {
+			id: combo.getId(),
+			className: getClassName(combo),
+			strategy: "dropdown-list",
+			index: match.index,
+			text: match.text,
+			value: typeof combo?.getValue === "function" ? combo.getValue() : match.text,
+			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
+		};
+	}
+
+	async function selectComboItemFromGrid(combo, grid, lookup, options) {
+		const columns = Array.isArray(options.columns)
+			? options.columns.filter((value) => Number.isInteger(value) && value >= 0)
+			: null;
+		const match = findDataGridCellByText(grid, lookup.text, options.exact, columns);
+		if (!match) {
+			return null;
+		}
+
+		if (typeof grid.scrollCellVisible === "function") {
+			grid.scrollCellVisible(match.col, match.row, null, null);
+		}
+		if (typeof grid.setFocusedCell === "function") {
+			grid.setFocusedCell(match.col, match.row, true, true, false);
+		}
+
+		await flushUi(3);
+		await wait(50);
+
+		const dropDownList = resolveComboDropDownList(combo);
+		const roots = getComboSearchRoots(combo, grid, dropDownList);
+		const previousValue = typeof combo?.getValue === "function" ? combo.getValue() : null;
+		let clicked = false;
+
+		for (const root of roots) {
+			const element = await waitForCondition(
+				() => findClickableTextElement(root, match.text, true) || findClickableTextElement(root, lookup.text, options.exact),
+				{ timeoutMs: options.timeoutMs, intervalMs: 25 }
+			);
+			if (!element) {
+				continue;
+			}
+
+			clicked = dispatchClick(element);
+			if (clicked) {
+				break;
+			}
+		}
+
+		if (clicked) {
+			await waitForCondition(() => {
+				const currentValue = typeof combo?.getValue === "function" ? combo.getValue() : null;
+				if (matchesLookupText(currentValue, match.text, true)) {
+					return true;
+				}
+
+				if (typeof combo?.isDroppedDown === "function" && !combo.isDroppedDown() && currentValue && currentValue !== previousValue) {
+					return true;
+				}
+
+				return false;
+			}, { timeoutMs: options.timeoutMs, intervalMs: 50 });
+		}
+
+		await flushUi(2);
+		await wait(100);
+
+		if (!matchesLookupText(typeof combo?.getValue === "function" ? combo.getValue() : null, match.text, true)
+			&& typeof combo?.setValue === "function") {
+			combo.setValue(match.text);
+		}
+
+		if (typeof combo?.close === "function"
+			&& typeof combo?.isDroppedDown === "function"
+			&& combo.isDroppedDown()
+			&& !matchesLookupText(typeof combo?.getValue === "function" ? combo.getValue() : null, match.text, true)) {
+			combo.close();
+		}
+
+		return {
+			id: combo.getId(),
+			className: getClassName(combo),
+			strategy: clicked ? "dropdown-grid-dom-click" : "dropdown-grid-value-fallback",
+			row: match.row,
+			col: match.col,
+			text: match.text,
+			value: typeof combo?.getValue === "function" ? combo.getValue() : match.text,
+			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
+		};
+	}
+
 	function resolveComponent(core, target) {
 		// First, try direct Wisej component id lookup.
 		let component = core.getComponent(target);
@@ -419,6 +882,40 @@
 		comboboxGetSelection(input = {}) {
 			const combo = resolveComboBox(input);
 			return { id: combo.getId(), selection: combo.getSelection() };
+		},
+
+		async comboboxSelectItem(input = {}) {
+			const lookup = input && typeof input === "object" ? input : {};
+			if (typeof lookup.text !== "string" || lookup.text.trim().length === 0) {
+				throw new Error("Parameter 'text' must be a non-empty string.");
+			}
+
+			const combo = resolveComboBox(lookup);
+			const options = {
+				exact: lookup.exact !== false,
+				timeoutMs: Number.isFinite(lookup.timeoutMs) ? lookup.timeoutMs : 3000,
+				columns: Array.isArray(lookup.columns) ? lookup.columns : (Number.isInteger(lookup.column) ? [lookup.column] : null)
+			};
+
+			await ensureComboOpened(combo, options.timeoutMs);
+
+			const list = resolveComboDropDownList(combo);
+			if (list && typeof list.getModel === "function" && isListSelectionControl(list)) {
+				const listResult = await selectComboItemFromList(combo, list, lookup, options);
+				if (listResult) {
+					return listResult;
+				}
+			}
+
+			const grid = resolveComboDropDownGrid(combo);
+			if (grid) {
+				const gridResult = await selectComboItemFromGrid(combo, grid, lookup, options);
+				if (gridResult) {
+					return gridResult;
+				}
+			}
+
+			throw new Error(`No combobox item matched text: ${lookup.text}`);
 		},
 
 		listScrollToIndex(input = {}) {

@@ -108,6 +108,17 @@ async function comboboxGetSelection(input = {}) {
 	return invokeWisejHelper("comboboxGetSelection", input);
 }
 
+//#Example=Select ComboBox item by text: { ariaLabel: "Rota Group", text: "Cyclical testing 9" }.
+//#Example=Select ComboBox item from a grid-backed dropdown: { id: "luRotaGroupFilter", text: "Cyclical testing 9", columns: [2] }.
+//#Summary=Select ComboBox item
+//#Description=Selects an item in a Wisej ComboBox, including virtualized and grid-backed UserComboBox dropdowns.
+//#ReturnsType=object
+//#ReturnsValue={"id":"luRotaGroupFilter","strategy":"dropdown-grid-dom-click","row":13,"col":2,"text":"Cyclical testing 9","value":"Cyclical testing 9"}
+//#Params=id,selector,ariaLabel,text,exact,column,columns,timeoutMs
+async function comboboxSelectItem(input = {}) {
+	return invokeWisejHelper("comboboxSelectItem", input);
+}
+
 //#Example=Scroll list to index: { id: "listBox1", index: 120 }.
 //#Summary=Scroll List To Index
 //#Description=Scrolls a Wisej list control to ensure the specified item index is visible.
@@ -198,6 +209,7 @@ module.exports = {
 	comboboxGetSelectedIndex,
 	comboboxSetSelection,
 	comboboxGetSelection,
+	comboboxSelectItem,
 	listScrollToIndex,
 	listSelectItem,
 	listGetViewportInfo,
