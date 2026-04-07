@@ -28,6 +28,152 @@
 		return String(component?.classname || component?.constructor?.classname || "");
 	}
 
+	function callWidgetMethod(widget, methodName) {
+		if (!widget || typeof widget[methodName] !== "function") {
+			return null;
+		}
+
+		try {
+			return widget[methodName]();
+		} catch {
+			return null;
+		}
+	}
+
+	function addLookupKey(target, seen, value) {
+		if (value == null) {
+			return;
+		}
+
+		const key = String(value).trim();
+		if (!key || seen.has(key)) {
+			return;
+		}
+
+		seen.add(key);
+		target.push(key);
+	}
+
+	function getElementLookupKeys(element) {
+		if (!element || typeof element.getAttribute !== "function") {
+			return [];
+		}
+
+		const keys = [];
+		const seen = new Set();
+		for (const attributeName of ["data-wisej-id", "data-testid", "name", "id"]) {
+			addLookupKey(keys, seen, element.getAttribute(attributeName));
+		}
+
+		return keys;
+	}
+
+	function getWidgetLookupKeys(widget) {
+		if (!widget) {
+			return [];
+		}
+
+		const keys = [];
+		const seen = new Set();
+
+		addLookupKey(keys, seen, callWidgetMethod(widget, "getName"));
+		addLookupKey(keys, seen, widget?.name);
+		addLookupKey(keys, seen, callWidgetMethod(widget, "getId"));
+
+		const dom = getWidgetDomElement(widget);
+		for (const key of getElementLookupKeys(dom)) {
+			addLookupKey(keys, seen, key);
+		}
+
+		return keys;
+	}
+
+	function resolveComponentByLookupKeys(core, values) {
+		if (!Array.isArray(values)) {
+			return null;
+		}
+
+		const seen = new Set();
+		for (const value of values) {
+			const key = String(value || "").trim();
+			if (!key || seen.has(key)) {
+				continue;
+			}
+
+			seen.add(key);
+			const component = core.getComponent(key);
+			if (component) {
+				return component;
+			}
+		}
+
+		return null;
+	}
+
+	function looksLikeWisejWidget(widget) {
+		const className = getClassName(widget);
+		return className.indexOf("wisej.") === 0 || className.indexOf("wisej.web.") === 0;
+	}
+
+	function resolveComponentFromWidget(core, widget) {
+		if (!widget) {
+			return null;
+		}
+
+		const queue = [widget];
+		const seenWidgets = new Set();
+		let fallback = null;
+
+		while (queue.length > 0) {
+			const current = queue.shift();
+			if (!current || seenWidgets.has(current)) {
+				continue;
+			}
+
+			seenWidgets.add(current);
+
+			const component = resolveComponentByLookupKeys(core, getWidgetLookupKeys(current));
+			if (component) {
+				return component;
+			}
+
+			if (!fallback && looksLikeWisejWidget(current)) {
+				fallback = current;
+			}
+
+			for (const relationName of ["getLayoutParent", "getParent", "getOwner", "getOpener"]) {
+				const related = callWidgetMethod(current, relationName);
+				if (related && !seenWidgets.has(related)) {
+					queue.push(related);
+				}
+			}
+		}
+
+		return fallback;
+	}
+
+	function resolveComponentFromElement(core, element) {
+		const getWidgetByElement = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement;
+		let node = element;
+		while (node) {
+			if (typeof getWidgetByElement === "function") {
+				const component = resolveComponentFromWidget(core, getWidgetByElement(node));
+				if (component) {
+					return component;
+				}
+			}
+
+			const byElementKeys = resolveComponentByLookupKeys(core, getElementLookupKeys(node));
+			if (byElementKeys) {
+				return byElementKeys;
+			}
+
+			node = node.parentElement;
+		}
+
+		return null;
+	}
+
 	function resolveListControl(input) {
 		const core = getWisejCore();
 		const target = resolveComponentId(input);
@@ -712,17 +858,17 @@
 
 		// If direct lookup fails, treat target as an aria-label and resolve via DOM.
 		const ariaSelector = `[aria-label="${escapeAttribute(target)}"]`;
-		const fromAria = selectorToComponentId(ariaSelector);
-		if (fromAria) {
-			component = core.getComponent(fromAria);
+		const ariaElement = querySelectorElement(ariaSelector);
+		if (ariaElement) {
+			component = resolveComponentFromElement(core, ariaElement);
 			if (component) return component;
 		}
 
 		// Finally, treat target as a raw id selector.
 		const idSelector = `#${escapeCssId(target)}`;
-		const fromIdSelector = selectorToComponentId(idSelector);
-		if (fromIdSelector) {
-			component = core.getComponent(fromIdSelector);
+		const idElement = querySelectorElement(idSelector);
+		if (idElement) {
+			component = resolveComponentFromElement(core, idElement);
 			if (component) return component;
 		}
 
@@ -772,36 +918,37 @@
 	}
 
 	function selectorToComponentId(selector) {
+		const el = querySelectorElement(selector);
+		if (!el) {
+			return null;
+		}
+
+		let node = el;
+		while (node) {
+			const widget = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement?.(node);
+			const widgetKeys = getWidgetLookupKeys(widget);
+			if (widgetKeys.length > 0) {
+				return widgetKeys[0];
+			}
+
+			const elementKeys = getElementLookupKeys(node);
+			if (elementKeys.length > 0) {
+				return elementKeys[0];
+			}
+
+			node = node.parentElement;
+		}
+
+		return null;
+	}
+
+	function querySelectorElement(selector) {
 		const doc = globalThis.document || globalThis.window?.document;
 		if (!doc || typeof doc.querySelector !== "function") {
 			return null;
 		}
 
-		const el = doc.querySelector(selector);
-		if (!el) {
-			return null;
-		}
-
-		// Prefer DOM ids from the matched element/ancestors; many Wisej controls
-		// can be resolved directly by those ids through Wisej.Core.getComponent.
-		let node = el;
-		while (node) {
-			if (typeof node.getAttribute === "function") {
-				const id = node.getAttribute("id");
-				if (id) {
-					return id;
-				}
-			}
-			node = node.parentElement;
-		}
-
-		const qxWidget = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement?.(el);
-		const directId = qxWidget?.getId?.();
-		if (directId) {
-			return directId;
-		}
-
-		return null;
+		return doc.querySelector(selector);
 	}
 
 	function escapeAttribute(value) {
