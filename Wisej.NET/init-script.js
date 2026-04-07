@@ -28,13 +28,13 @@
 		return String(component?.classname || component?.constructor?.classname || "");
 	}
 
-	function callWidgetMethod(widget, methodName) {
+	function callWidgetMethod(widget, methodName, ...args) {
 		if (!widget || typeof widget[methodName] !== "function") {
 			return null;
 		}
 
 		try {
-			return widget[methodName]();
+			return widget[methodName](...args);
 		} catch {
 			return null;
 		}
@@ -388,11 +388,132 @@
 		return false;
 	}
 
+	function getLookupTextValue(value) {
+		return hasLookupText(value)
+			? String(value).trim().replace(/\s+/g, " ")
+			: null;
+	}
+
+	function getNodeTextValue(node) {
+		if (!node) {
+			return null;
+		}
+
+		if (typeof node.value === "string" && hasLookupText(node.value)) {
+			return getLookupTextValue(node.value);
+		}
+
+		const rawText = typeof node.innerText === "string" && node.innerText.trim().length > 0
+			? node.innerText
+			: node.textContent;
+		return getLookupTextValue(rawText);
+	}
+
+	function getDomDisplayedText(element) {
+		if (!element || typeof element.querySelector !== "function") {
+			return null;
+		}
+
+		const candidates = [];
+		const seen = new Set();
+		const push = (node) => {
+			if (!node || seen.has(node)) {
+				return;
+			}
+
+			seen.add(node);
+			candidates.push(node);
+		};
+
+		for (const selector of [
+			'input, textarea',
+			'[name="textfield"]',
+			'[name="editor"]',
+			'[name="labelfield"]',
+			'[name="label"]'
+		]) {
+			push(element.querySelector(selector));
+		}
+		push(element);
+
+		for (const candidate of candidates) {
+			const text = getNodeTextValue(candidate);
+			if (text) {
+				return text;
+			}
+		}
+
+		return null;
+	}
+
+	function getComboEditor(combo) {
+		for (const candidate of [
+			callWidgetMethod(combo, "getEditor"),
+			callWidgetMethod(combo, "getTextField"),
+			callWidgetMethod(combo, "getTextBox"),
+			callWidgetMethod(combo, "getChildControl", "textfield", true),
+			callWidgetMethod(combo, "getChildControl", "editor", true),
+			callWidgetMethod(combo, "getChildControl", "textbox", true)
+		]) {
+			if (candidate) {
+				return candidate;
+			}
+		}
+
+		return null;
+	}
+
+	function getComboSelectedItem(combo) {
+		const directSelection = callWidgetMethod(combo, "getSelectedItem");
+		if (directSelection) {
+			return directSelection;
+		}
+
+		const selection = callWidgetMethod(combo, "getSelection");
+		if (Array.isArray(selection)) {
+			return selection[0] || null;
+		}
+
+		return selection || null;
+	}
+
+	function getComboDisplayText(combo) {
+		const editor = getComboEditor(combo);
+		const selectedItem = getComboSelectedItem(combo);
+
+		return getLookupTextValue(callWidgetMethod(combo, "getText"))
+			|| getLookupTextValue(getListItemText(selectedItem))
+			|| getLookupTextValue(getGridCellText(selectedItem))
+			|| getLookupTextValue(callWidgetMethod(editor, "getText"))
+			|| getLookupTextValue(callWidgetMethod(editor, "getLabel"))
+			|| getLookupTextValue(callWidgetMethod(editor, "getValue"))
+			|| getDomDisplayedText(getWidgetDomElement(editor))
+			|| getDomDisplayedText(getWidgetDomElement(combo))
+			|| getLookupTextValue(callWidgetMethod(combo, "getValue"));
+	}
+
+	function getComboValueInfo(combo) {
+		const rawValue = typeof combo?.getValue === "function" ? combo.getValue() : null;
+		const displayText = getComboDisplayText(combo);
+
+		return {
+			id: combo.getId(),
+			rawValue,
+			displayText,
+			value: hasLookupText(rawValue) ? rawValue : displayText,
+			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
+		};
+	}
+
 	function normalizeLookupText(value) {
 		return String(value == null ? "" : value)
-			trim()
-			replace(/\s+/g, " ")
+			.trim()
+			.replace(/\s+/g, " ")
 			.toLowerCase();
+	}
+
+	function hasLookupText(value) {
+		return normalizeLookupText(value).length > 0;
 	}
 
 	function matchesLookupText(candidate, expected, exact) {
@@ -574,11 +695,11 @@
 		return null;
 	}
 
-	function getComboSearchRoots(combo, ...widgets) {
+	function getComboSearchRoots(...widgets) {
 		const roots = [];
 		const seen = new Set();
 
-		for (const widget of [combo, ...widgets]) {
+		for (const widget of widgets) {
 			const dom = getWidgetDomElement(widget);
 			if (!dom || seen.has(dom)) {
 				continue;
@@ -760,23 +881,102 @@
 		}
 
 		return {
-			id: combo.getId(),
 			className: getClassName(combo),
 			strategy: "dropdown-list",
 			index: match.index,
 			text: match.text,
-			value: typeof combo?.getValue === "function" ? combo.getValue() : match.text,
-			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
+			...getComboValueInfo(combo)
 		};
+	}
+
+	function comboSelectionLooksCommitted(combo, expectedText, previousInfo = null) {
+		const currentInfo = getComboValueInfo(combo);
+		if (matchesLookupText(currentInfo.value, expectedText, true)
+			|| matchesLookupText(currentInfo.rawValue, expectedText, true)
+			|| matchesLookupText(currentInfo.displayText, expectedText, true)) {
+			return true;
+		}
+
+		if (!previousInfo) {
+			return false;
+		}
+
+		const dropdownClosed = typeof combo?.isDroppedDown === "function"
+			? !combo.isDroppedDown()
+			: false;
+		if (!dropdownClosed) {
+			return false;
+		}
+
+		return currentInfo.selectedIndex !== previousInfo.selectedIndex
+			|| normalizeLookupText(currentInfo.value) !== normalizeLookupText(previousInfo.value)
+			|| normalizeLookupText(currentInfo.rawValue) !== normalizeLookupText(previousInfo.rawValue)
+			|| normalizeLookupText(currentInfo.displayText) !== normalizeLookupText(previousInfo.displayText);
+	}
+
+	async function selectComboItemFromDom(combo, lookup, options, ...widgets) {
+		const roots = getComboSearchRoots(...widgets, resolveComboDropDownList(combo), combo);
+		const previousInfo = getComboValueInfo(combo);
+
+		for (const root of roots) {
+			const element = await waitForCondition(
+				() => findClickableTextElement(root, lookup.text, options.exact),
+				{ timeoutMs: options.timeoutMs, intervalMs: 25 }
+			);
+			if (!element || !dispatchClick(element)) {
+				continue;
+			}
+
+			await flushUi(3);
+			await wait(100);
+
+			if (!comboSelectionLooksCommitted(combo, lookup.text, previousInfo)) {
+				continue;
+			}
+
+			return {
+				className: getClassName(combo),
+				strategy: "dropdown-dom-fallback",
+				text: getNodeTextValue(element) || lookup.text,
+				...getComboValueInfo(combo)
+			};
+		}
+
+		return null;
 	}
 
 	async function selectComboItemFromGrid(combo, grid, lookup, options) {
 		const columns = Array.isArray(options.columns)
 			? options.columns.filter((value) => Number.isInteger(value) && value >= 0)
 			: null;
-		const match = findDataGridCellByText(grid, lookup.text, options.exact, columns);
+		const previousInfo = getComboValueInfo(combo);
+		let match = findDataGridCellByText(grid, lookup.text, options.exact, columns);
+		if (!match && columns && columns.length > 0) {
+			match = findDataGridCellByText(grid, lookup.text, options.exact, null);
+		}
+		if (!match && options.exact) {
+			match = findDataGridCellByText(grid, lookup.text, false, columns);
+			if (!match && columns && columns.length > 0) {
+				match = findDataGridCellByText(grid, lookup.text, false, null);
+			}
+		}
 		if (!match) {
-			return null;
+			return selectComboItemFromDom(combo, lookup, options, grid);
+		}
+
+		const indexSelected = trySelectComboByIndex(combo, match.row);
+		if (indexSelected) {
+			await flushUi(2);
+			if (comboSelectionLooksCommitted(combo, match.text, previousInfo)) {
+				return {
+					className: getClassName(combo),
+					strategy: "dropdown-grid-selected-index",
+					row: match.row,
+					col: match.col,
+					text: match.text,
+					...getComboValueInfo(combo)
+				};
+			}
 		}
 
 		if (typeof grid.scrollCellVisible === "function") {
@@ -790,8 +990,7 @@
 		await wait(50);
 
 		const dropDownList = resolveComboDropDownList(combo);
-		const roots = getComboSearchRoots(combo, grid, dropDownList);
-		const previousValue = typeof combo?.getValue === "function" ? combo.getValue() : null;
+		const roots = getComboSearchRoots(grid, dropDownList, combo);
 		let clicked = false;
 
 		for (const root of roots) {
@@ -811,43 +1010,40 @@
 
 		if (clicked) {
 			await waitForCondition(() => {
-				const currentValue = typeof combo?.getValue === "function" ? combo.getValue() : null;
-				if (matchesLookupText(currentValue, match.text, true)) {
-					return true;
-				}
-
-				if (typeof combo?.isDroppedDown === "function" && !combo.isDroppedDown() && currentValue && currentValue !== previousValue) {
-					return true;
-				}
-
-				return false;
+				return comboSelectionLooksCommitted(combo, match.text, previousInfo);
 			}, { timeoutMs: options.timeoutMs, intervalMs: 50 });
 		}
 
 		await flushUi(2);
 		await wait(100);
 
-		if (!matchesLookupText(typeof combo?.getValue === "function" ? combo.getValue() : null, match.text, true)
-			&& typeof combo?.setValue === "function") {
-			combo.setValue(match.text);
+		if (!comboSelectionLooksCommitted(combo, match.text, previousInfo)) {
+			const editor = getComboEditor(combo);
+			const editorUpdated = setEditorValue(editor, match.text);
+			if (!editorUpdated && typeof combo?.setValue === "function") {
+				combo.setValue(match.text);
+			}
+			await flushUi(2);
 		}
 
 		if (typeof combo?.close === "function"
 			&& typeof combo?.isDroppedDown === "function"
 			&& combo.isDroppedDown()
-			&& !matchesLookupText(typeof combo?.getValue === "function" ? combo.getValue() : null, match.text, true)) {
+			&& !comboSelectionLooksCommitted(combo, match.text, previousInfo)) {
 			combo.close();
 		}
 
+		if (!comboSelectionLooksCommitted(combo, match.text, previousInfo)) {
+			return selectComboItemFromDom(combo, { ...lookup, text: match.text }, options, grid);
+		}
+
 		return {
-			id: combo.getId(),
 			className: getClassName(combo),
 			strategy: clicked ? "dropdown-grid-dom-click" : "dropdown-grid-value-fallback",
 			row: match.row,
 			col: match.col,
 			text: match.text,
-			value: typeof combo?.getValue === "function" ? combo.getValue() : match.text,
-			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
+			...getComboValueInfo(combo)
 		};
 	}
 
@@ -1011,12 +1207,12 @@
 		comboboxSetValue(input = {}) {
 			const combo = resolveComboBox(input);
 			combo.setValue(input.value == null ? "" : String(input.value));
-			return { id: combo.getId(), value: combo.getValue() };
+			return getComboValueInfo(combo);
 		},
 
 		comboboxGetValue(input = {}) {
 			const combo = resolveComboBox(input);
-			return { id: combo.getId(), value: combo.getValue() };
+			return getComboValueInfo(combo);
 		},
 
 		comboboxSetSelectedIndex(input = {}) {

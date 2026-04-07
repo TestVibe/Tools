@@ -1,6 +1,6 @@
 //#PackageDescription=Wisej.NET provider tools for UI automation and interaction helpers.
 //#PageBound=true
-//#PackageVersion=1.0.0
+//#PackageVersion=1.0.1
 function resolvePageBoundInput(input) {
 	const payload = input && typeof input === "object" && !Array.isArray(input)
 		? input
@@ -60,9 +60,9 @@ async function comboboxSetValue(input = {}) {
 
 //#Example=Get ComboBox value by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
 //#Summary=Get ComboBox value
-//#Description=Gets the current text value of a Wisej ComboBox.
+//#Description=Gets the current selected/displayed value of a Wisej ComboBox. The returned value falls back to display text when the raw value is empty.
 //#ReturnsType=object
-//#ReturnsValue={"id":"luConfirmedFilter","value":"Williamson, Ryan"}
+//#ReturnsValue={"id":"luConfirmedFilter","rawValue":"","displayText":"Williamson, Ryan","value":"Williamson, Ryan"}
 //#Params=id,selector,ariaLabel
 async function comboboxGetValue(input = {}) {
 	return invokeWisejHelper("comboboxGetValue", input);
