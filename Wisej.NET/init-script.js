@@ -1,6 +1,763 @@
 (() => {
 	const NAMESPACE = "__wisejNetTools";
 
+	// Adds missing ARIA roles/labels to Wisej widgets by traversing window.App (or window.app).
+	// This helps Playwright locators like getByRole(...) work reliably in Wisej apps.
+	(() => {
+		const stateKey = "__testvibeWisejAriaPatcher";
+		if (window[stateKey]?.installed) {
+			return;
+		}
+
+		const state = (window[stateKey] = window[stateKey] || {});
+		state.installed ??= false;
+		state.readyLogged ??= false;
+		// No cap: allow full ARIA role logging when debugging locator issues.
+		state.logLimit ??= Number.POSITIVE_INFINITY;
+		state.logCount ??= 0;
+		state.namePatch ??= {
+			seen: new WeakSet(),
+			newElements: 0,
+			patched: 0,
+		};
+
+		function getQxRoot() {
+			try {
+				const app = window.qx?.core?.Init?.getApplication?.();
+				return app?.getRoot?.() || app?.__root || null;
+			} catch {
+				return null;
+			}
+		}
+
+		function getAppRoot() {
+			return (
+				window.App?.MainPage ||
+				window.App?.MainView ||
+				window.app?.MainPage ||
+				window.app?.MainView ||
+				getQxRoot() ||
+				null
+			);
+		}
+
+		function qxClassName(widget) {
+			try {
+				return window.qx?.Class?.getClassName
+					? qx.Class.getClassName(widget)
+					: widget?.constructor?.classname || widget?.constructor?.name || null;
+			} catch {
+				return null;
+			}
+		}
+
+		function getWidgetContentDomElement(widget) {
+			try {
+				const contentElement = widget?.getContentElement?.();
+				return contentElement?.getDomElement?.() || null;
+			} catch {
+				return null;
+			}
+		}
+
+		function isVisible(el) {
+			const style = getComputedStyle(el);
+			if (style.display === "none" || style.visibility === "hidden") return false;
+			const rect = el.getBoundingClientRect();
+			return rect.width > 0 && rect.height > 0;
+		}
+
+		function normalizeString(value) {
+			if (typeof value !== "string") return null;
+			const trimmed = value.replace(/\s+/g, " ").trim();
+			return trimmed || null;
+		}
+
+		function firstString(...values) {
+			for (const value of values) {
+				const trimmed = normalizeString(value);
+				if (trimmed) return trimmed;
+			}
+			return null;
+		}
+
+		function isLowValueLabel(label) {
+			const normalized = normalizeString(label);
+			if (!normalized) return false;
+			return (
+				isProbablyInternalName(normalized) ||
+				/^(button|label|pane|content|scrollpane|bar|tabview|page|item|control|client|widget|generic|group|panel)$/i.test(
+					normalized
+				)
+			);
+		}
+
+		function firstMeaningfulString(...values) {
+			let fallback = null;
+			for (const value of values) {
+				const normalized = normalizeString(value);
+				if (!normalized) continue;
+				fallback ??= normalized;
+				if (!isLowValueLabel(normalized)) return normalized;
+			}
+			return fallback;
+		}
+
+		function tryCall(widget, method) {
+			try {
+				return typeof widget?.[method] === "function" ? widget[method]() : null;
+			} catch {
+				return null;
+			}
+		}
+
+		function getWidgetForElement(dom) {
+			if (!dom || dom.nodeType !== 1) return null;
+
+			try {
+				const widget = window.qx?.ui?.core?.Widget?.getWidgetByElement?.(dom);
+				if (widget) return widget;
+			} catch {
+				// ignore
+			}
+
+			try {
+				let current = dom;
+				while (current && current.nodeType === 1) {
+					if (current.id && typeof window.widget === "function") {
+						const widget = window.widget(current.id);
+						if (widget) return widget;
+					}
+					current = current.parentElement;
+				}
+			} catch {
+				// ignore
+			}
+
+			return null;
+		}
+
+		function inferLabel(widget, dom) {
+			const resolvedWidget = widget || getWidgetForElement(dom);
+
+			const fromWidget = firstMeaningfulString(
+				tryCall(resolvedWidget, "getText"),
+				tryCall(resolvedWidget, "getCaption"),
+				tryCall(resolvedWidget, "getLabel"),
+				tryCall(resolvedWidget, "getTitle"),
+				tryCall(resolvedWidget, "getToolTipText"),
+				tryCall(resolvedWidget, "getWatermark"),
+				tryCall(resolvedWidget, "getPlaceholderText"),
+				tryCall(resolvedWidget, "getName")
+			);
+			if (fromWidget) return fromWidget;
+
+			const fromDom = firstMeaningfulString(
+				dom?.getAttribute?.("aria-label"),
+				dom?.innerText,
+				dom?.textContent
+			);
+			if (fromDom) return fromDom;
+
+			// Common layout pattern in Wisej demos: previous sibling Label describes next control.
+			try {
+				const parent = resolvedWidget?.getLayoutParent?.() || resolvedWidget?.getParent?.() || null;
+				const siblings = parent?.getChildren?.() || [];
+				const idx = siblings.indexOf(resolvedWidget);
+				if (idx > 0) {
+					const prev = siblings[idx - 1];
+					const prevClass = qxClassName(prev);
+					if (/wisej\.web\.(Label|LinkLabel)$/i.test(prevClass || "")) {
+						const prevDom = getWidgetContentDomElement(prev);
+						const prevText = firstString(
+							tryCall(prev, "getText"),
+							prevDom?.innerText,
+							prevDom?.textContent
+						);
+						if (prevText) return prevText;
+					}
+				}
+			} catch {
+				// ignore
+			}
+
+			return null;
+		}
+
+		function isProbablyInternalName(label) {
+			if (!label) return false;
+			return (
+				/^id_\\d+$/i.test(label) ||
+				/^txt[A-Z0-9_]/.test(label) ||
+				/^cmb[A-Z0-9_]/.test(label) ||
+				/^[a-z]+[A-Z][A-Za-z0-9_]*$/.test(label)
+			);
+		}
+
+		function findEditableDescendant(root) {
+			if (!root || root.nodeType !== 1) return null;
+			const direct = root.matches?.('input:not([type="hidden"]),textarea,[contenteditable="true"]')
+				? root
+				: null;
+			if (direct) return direct;
+			return (
+				root.querySelector?.('input:not([type="hidden"]),textarea,[contenteditable="true"]') ||
+				null
+			);
+		}
+
+		function expectedRoleFor(className, widget, dom) {
+			if (!className) return null;
+			const appearance = firstString(tryCall(widget, "getAppearance"));
+			const domClass = typeof dom?.className === "string" ? dom.className : "";
+
+			if (
+				/qx\.ui\.tabview\.TabButton$/i.test(className) ||
+				/\bqx-ribbonbar-tabview-page-button\b/i.test(domClass)
+			)
+				return "tab";
+			if (/wisej\.web\.(Button|MenuButton|SplitButton|ToolButton)$/i.test(className))
+				return "button";
+			if (
+				/qx\.ui\.form\.Button$/i.test(className) ||
+				/\.(?:ItemButton|MenuButton|SplitButton|ToolButton)$/i.test(className) ||
+				/ribbonbar-item/i.test(appearance || "") ||
+				/\bqx-ribbonbar-item\b/i.test(domClass)
+			)
+				return "button";
+			if (/wisej\.web\.CheckBox$/i.test(className)) return "checkbox";
+			if (/wisej\.web\.RadioButton$/i.test(className)) return "radio";
+			if (/wisej\.web\.(TextBox|MaskedTextBox|TextBoxBase)$/i.test(className))
+				return "textbox";
+			if (
+				/wisej\.web\.(?:\w+ComboBox|SelectBox|DropDownList|LookupBox|DataLookup)$/i.test(className) ||
+				/qx\.ui\.form\.(ComboBox|SelectBox)$/i.test(className)
+			)
+				return "combobox";
+			if (/wisej\.web\.ListBox$/i.test(className)) return "listbox";
+			if (/wisej\.web\.TreeView$/i.test(className)) return "tree";
+			if (/wisej\.web\.DataGridView$/i.test(className)) return "grid";
+			if (/qx\.ui\.table\.Table$/i.test(className)) return "grid";
+			if (/wisej\.web\.MessageBox$/i.test(className)) return "alertdialog";
+			if (
+				/wisej\.web\.(Form|Dialog|DesktopWindow|Window)$/i.test(className) ||
+				/qx\.ui\.window\.Window$/i.test(className)
+			)
+				return "dialog";
+			if (/wisej\.web\.SlideBar$/i.test(className)) return "slider";
+			if (/wisej\.web\.Line$/i.test(className)) return "separator";
+			if (/wisej\.web\.PictureBox$/i.test(className)) return "img";
+			if (/wisej\.web\.(Panel|ScrollablePage)$/i.test(className)) return "region";
+			return null;
+		}
+
+		function patchDialogSemantics(dom, dialogRole) {
+			const cap = 200;
+			let touched = 0;
+			let buttonsPatched = 0;
+
+			const setRoleIfMissing = (el, role) => {
+				if (touched >= cap) return false;
+				if (!el || el.nodeType !== 1) return false;
+				if (!isVisible(el)) return false;
+				if (el.hasAttribute("role")) return false;
+				el.setAttribute("role", role);
+				touched++;
+				return true;
+			};
+
+			// Ensure modal semantics on the dialog itself.
+			if (!dom.hasAttribute("aria-modal")) {
+				dom.setAttribute("aria-modal", "true");
+				touched++;
+			}
+
+			// Patch button-like divs inside qx/Wisej dialogs/messageboxes.
+			const buttonCandidates = dom.querySelectorAll(
+				'.qx-button, [class*="qx-button"], [class*="button-"]'
+			);
+			for (const btn of buttonCandidates) {
+				if (setRoleIfMissing(btn, "button")) buttonsPatched++;
+				if (!btn.hasAttribute("aria-label") && !btn.hasAttribute("aria-labelledby")) {
+					const label = firstString(btn.innerText, btn.textContent);
+					if (label) {
+						btn.setAttribute("aria-label", label);
+						touched++;
+					}
+				}
+				if (touched >= cap) break;
+			}
+
+			return { dialogRole, buttonsPatched, touched };
+		}
+
+		function patchGridSemantics(dom) {
+			// Best-effort: apply semantic roles to Qooxdoo/Wisej table-like grids.
+			// We avoid deep attribute/indexing to keep this low-risk and fast.
+			const cap = 800;
+			let touched = 0;
+			let cellsPatched = 0;
+			let headersPatched = 0;
+			let rowsPatched = 0;
+
+			const shouldOverrideRole = (current, desired) => {
+				if (!current) return true;
+				if (current === desired) return false;
+				// Normalize known non-standard roles seen in some Wisej/Qx themes.
+				if (current === "content" && desired === "gridcell") return true;
+				if (current === "cell" && desired === "gridcell") return true;
+				return false;
+			};
+
+			const setRole = (el, role) => {
+				if (touched >= cap) return false;
+				if (!el || el.nodeType !== 1) return false;
+				if (!isVisible(el)) return false;
+				const current = el.getAttribute("role");
+				if (!shouldOverrideRole(current, role)) return false;
+				el.setAttribute("role", role);
+				touched++;
+				return true;
+			};
+
+			// Qooxdoo table headers.
+			for (const header of dom.querySelectorAll('[class*="qx-table-header-cell"]')) {
+				if (setRole(header, "columnheader")) headersPatched++;
+			}
+
+			// Qooxdoo table rows/cells.
+			for (const row of dom.querySelectorAll('[class*="qx-table-row"]')) {
+				if (setRole(row, "row")) rowsPatched++;
+				if (touched >= cap) break;
+			}
+			for (const cell of dom.querySelectorAll(
+				'.qx-cell,[class*="qx-table-cell"],[class*="qx-table-cell-content"],[class*="qx-table-cell-content-middle"],[class*="qx-table-cell-content-right"],[class*="qx-table-cell-content-left"]'
+			)) {
+				if (setRole(cell, "gridcell")) cellsPatched++;
+				if (touched >= cap) break;
+			}
+
+			// HTML table grids (some Wisej apps embed third-party grids).
+			for (const header of dom.querySelectorAll("table th, .dx-header-row td, .dx-header-row th")) {
+				if (setRole(header, "columnheader")) headersPatched++;
+				if (touched >= cap) break;
+			}
+			for (const row of dom.querySelectorAll("table tr, .dx-data-row")) {
+				if (setRole(row, "row")) rowsPatched++;
+				if (touched >= cap) break;
+			}
+			for (const cell of dom.querySelectorAll("table td, .dx-data-row td")) {
+				if (setRole(cell, "gridcell")) cellsPatched++;
+				if (touched >= cap) break;
+			}
+
+			return { cellsPatched, headersPatched, rowsPatched, touched };
+		}
+
+		function applyRoleAndLabel(widget, dom, className) {
+			const expected = expectedRoleFor(className, widget, dom);
+			if (!expected) return false;
+
+			const expectedRole = expected;
+			const current = dom.getAttribute("role");
+			const roleWasMissing = !current;
+
+			// For editable controls, ensure we target the actual editable element (input/textarea/contenteditable)
+			// to avoid getByRole(...).fill() resolving to a non-editable wrapper div.
+			const editableTarget =
+				expectedRole === "textbox" || expectedRole === "combobox"
+					? findEditableDescendant(dom)
+					: null;
+
+			if (editableTarget) {
+				// Don't assign textbox/combobox role to the wrapper. Let wrapper remain generic and label the input.
+				if (current === expectedRole) dom.removeAttribute("role");
+
+				if (!editableTarget.hasAttribute("role") && expectedRole === "combobox") {
+					// Input elements don't natively have the combobox role.
+					editableTarget.setAttribute("role", "combobox");
+				}
+
+				let labelSet = null;
+				if (
+					(!editableTarget.hasAttribute("aria-label") ||
+						isLowValueLabel(editableTarget.getAttribute("aria-label"))) &&
+					!editableTarget.hasAttribute("aria-labelledby")
+				) {
+					labelSet = inferLabel(widget, dom);
+					const placeholder = editableTarget.getAttribute?.("placeholder");
+
+					// Avoid overriding a useful placeholder-driven name with an internal control name like txtUsername.
+					if (!(placeholder && isProbablyInternalName(labelSet))) {
+						if (labelSet) editableTarget.setAttribute("aria-label", labelSet);
+					}
+				}
+
+				if (expectedRole === "combobox") {
+					if (!editableTarget.hasAttribute("aria-haspopup"))
+						editableTarget.setAttribute("aria-haspopup", "listbox");
+					if (!editableTarget.hasAttribute("aria-expanded"))
+						editableTarget.setAttribute("aria-expanded", "false");
+				}
+
+				if (expectedRole === "textbox") {
+					const multiline = !!tryCall(widget, "getMultiline");
+					if (multiline && !editableTarget.hasAttribute("aria-multiline"))
+						editableTarget.setAttribute("aria-multiline", "true");
+
+					const placeholder = firstString(
+						tryCall(widget, "getWatermark"),
+						tryCall(widget, "getPlaceholderText")
+					);
+					if (placeholder && !editableTarget.hasAttribute("aria-placeholder"))
+						editableTarget.setAttribute("aria-placeholder", placeholder);
+				}
+			} else {
+				if (current !== expectedRole) dom.setAttribute("role", expectedRole);
+			}
+
+			let labelSet = null;
+			if (!editableTarget) {
+				if (
+					(!dom.hasAttribute("aria-label") || isLowValueLabel(dom.getAttribute("aria-label"))) &&
+					!dom.hasAttribute("aria-labelledby")
+				) {
+					labelSet = inferLabel(widget, dom);
+					if (labelSet) dom.setAttribute("aria-label", labelSet);
+				}
+			}
+
+			let gridPatched = null;
+			if (expectedRole === "grid") {
+				gridPatched = patchGridSemantics(dom);
+			}
+
+			let dialogPatched = null;
+			if (expectedRole === "dialog" || expectedRole === "alertdialog") {
+				const modal = !!tryCall(widget, "getModal");
+				const cls = typeof dom.className === "string" ? dom.className : "";
+				if (modal || /\bmodal\b/i.test(cls)) {
+					dialogPatched = patchDialogSemantics(dom, expectedRole);
+				}
+			}
+
+			if (expectedRole === "tab") {
+				const cls = typeof dom.className === "string" ? dom.className : "";
+				const selected = /\bchecked\b/i.test(cls) || !!tryCall(widget, "getValue");
+				dom.setAttribute("aria-selected", selected ? "true" : "false");
+
+				const tabList =
+					dom.closest?.('[class*="qx-ribbonbar-tabview-bar"]') ||
+					dom.parentElement?.closest?.('[class*="qx-ribbonbar-tabview"]') ||
+					null;
+				if (tabList) {
+					if (tabList.getAttribute("role") !== "tablist") {
+						tabList.setAttribute("role", "tablist");
+					}
+					if (
+						(!tabList.hasAttribute("aria-label") ||
+							isLowValueLabel(tabList.getAttribute("aria-label"))) &&
+						!tabList.hasAttribute("aria-labelledby")
+					) {
+						tabList.setAttribute("aria-label", "Ribbon Tabs");
+					}
+				}
+			}
+
+			if (roleWasMissing && !editableTarget) {
+				state.logCount++;
+				console.log("[TestVibe] ARIA role added", {
+					role: expectedRole,
+					widgetClass: className,
+					domId: dom.id || null,
+					ariaLabel:
+						dom.getAttribute("aria-label") || labelSet || dom.getAttribute("aria-labelledby") || null,
+					gridPatched,
+					dialogPatched,
+				});
+			}
+
+			if (!editableTarget && expected === "textbox") {
+				const multiline = !!tryCall(widget, "getMultiline");
+				if (multiline && !dom.hasAttribute("aria-multiline"))
+					dom.setAttribute("aria-multiline", "true");
+
+				const placeholder = firstString(
+					tryCall(widget, "getWatermark"),
+					tryCall(widget, "getPlaceholderText")
+				);
+				if (placeholder && !dom.hasAttribute("aria-placeholder"))
+					dom.setAttribute("aria-placeholder", placeholder);
+			} else if (!editableTarget && expected === "combobox") {
+				if (!dom.hasAttribute("aria-haspopup")) dom.setAttribute("aria-haspopup", "listbox");
+				if (!dom.hasAttribute("aria-expanded")) dom.setAttribute("aria-expanded", "false");
+			} else if (expected === "img") {
+				if (!dom.hasAttribute("aria-label") && !dom.hasAttribute("aria-labelledby")) {
+					const label = inferLabel(widget, dom);
+					if (label) dom.setAttribute("aria-label", label);
+				}
+			}
+
+			return true;
+		}
+
+		function patchOnce({ debug = false } = {}) {
+			const root = getAppRoot();
+			if (!root?.getChildren) {
+				return { ok: false, error: "No window.App MainPage/MainView found." };
+			}
+
+			const stack = [root];
+			const seen = new Set();
+			let visited = 0;
+			let patched = 0;
+
+			while (stack.length) {
+				const widget = stack.pop();
+				if (!widget) continue;
+
+				const hash = widget.$$hash || widget.__objectHash;
+				if (hash != null) {
+					if (seen.has(hash)) continue;
+					seen.add(hash);
+				}
+
+				visited++;
+
+				let children = [];
+				try {
+					children = widget.getChildren?.() || [];
+				} catch {
+					children = [];
+				}
+				for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+
+				const className = qxClassName(widget);
+				const dom = getWidgetContentDomElement(widget);
+				if (!dom || !isVisible(dom)) continue;
+
+				if (applyRoleAndLabel(widget, dom, className)) patched++;
+			}
+
+			if (debug) {
+				console.log("[TestVibe] Wisej ARIA patcher", { visited, patched });
+			}
+
+			// Patch clickable tiles/links that are rendered as generic containers with cursor:pointer.
+			// Keep this conservative to avoid turning large containers into buttons.
+			try {
+				patchPointerButtons(document.body || document.documentElement);
+			} catch {
+				// ignore
+			}
+
+			let namePatched = null;
+			try {
+				namePatched = patchNameAttributes(document.body || document.documentElement);
+			} catch {
+				// ignore
+			}
+
+			if (debug) {
+				console.log("[TestVibe] Name attribute patcher", namePatched);
+			}
+
+			return { ok: true, visited, patched, namePatched };
+		}
+
+		function patchPointerButtons(rootEl) {
+			if (!rootEl) return;
+
+			const visible = (el) => {
+				const s = getComputedStyle(el);
+				if (s.display === "none" || s.visibility === "hidden" || s.opacity === "0") return false;
+				const r = el.getBoundingClientRect();
+				return r.width > 0 && r.height > 0;
+			};
+
+			const isInteractiveTag = (tag) =>
+				tag === "a" ||
+				tag === "button" ||
+				tag === "input" ||
+				tag === "select" ||
+				tag === "textarea" ||
+				tag === "summary";
+
+			const cap = 200;
+			let touched = 0;
+
+			const candidates = Array.from(rootEl.querySelectorAll("div,span"))
+				.filter((el) => touched < cap)
+				.filter((el) => visible(el))
+				.filter((el) => !el.hasAttribute("role"))
+				.filter((el) => {
+					const tag = el.tagName.toLowerCase();
+					if (isInteractiveTag(tag)) return false;
+					const s = getComputedStyle(el);
+					return s.cursor === "pointer";
+				})
+				.filter((el) => {
+					// Avoid huge containers.
+					if (el.querySelectorAll("div,span").length > 30) return false;
+					// Avoid elements that are already focus targets or have nested focusables/roles.
+					if (el.tabIndex >= 0) return false;
+					if (el.querySelector("[role],a,button,input,select,textarea,[tabindex]")) return false;
+					// Require a short human label.
+					const text = firstString(el.innerText, el.textContent);
+					if (!text) return false;
+					if (text.length > 60) return false;
+					return true;
+				})
+				.slice(0, cap);
+
+			for (const el of candidates) {
+				if (touched >= cap) break;
+				if (el.parentElement?.closest?.("[role],a,button,input,select,textarea,[tabindex]")) {
+					continue;
+				}
+
+				const widget = getWidgetForElement(el);
+				const className = qxClassName(widget);
+				const role = expectedRoleFor(className, widget, el) || "button";
+				el.setAttribute("role", role);
+
+				if (
+					(!el.hasAttribute("aria-label") || isLowValueLabel(el.getAttribute("aria-label"))) &&
+					!el.hasAttribute("aria-labelledby")
+				) {
+					const label = inferLabel(widget, el);
+					if (label) el.setAttribute("aria-label", label);
+				}
+
+				if (role === "tab") {
+					const cls = typeof el.className === "string" ? el.className : "";
+					el.setAttribute("aria-selected", /\bchecked\b/i.test(cls) ? "true" : "false");
+				}
+				touched++;
+			}
+		}
+
+		function patchNameAttributes(rootEl) {
+			if (!rootEl) return { touched: 0, newElements: 0 };
+
+			const cap = 2000;
+			let touched = 0;
+			let newElements = 0;
+
+			const candidates = rootEl.querySelectorAll(
+				'[name]:not([aria-label]):not([aria-labelledby])'
+			);
+			for (const el of candidates) {
+				if (touched >= cap) break;
+				if (el.nodeType !== 1) continue;
+				if (!state.namePatch.seen.has(el)) {
+					state.namePatch.seen.add(el);
+					newElements++;
+				}
+				const rawName = el.getAttribute("name");
+				const name = typeof rawName === "string" ? rawName.trim() : "";
+				if (!name || isLowValueLabel(name)) continue;
+				if (!el.hasAttribute("data-testid")) {
+					el.setAttribute("data-testid", name);
+				}
+				if (!el.hasAttribute("data-wisej-id")) {
+					el.setAttribute("data-wisej-id", name);
+				}
+				if (
+					(el.hasAttribute("aria-label") && !isLowValueLabel(el.getAttribute("aria-label"))) ||
+					el.hasAttribute("aria-labelledby")
+				)
+					continue;
+				el.setAttribute("aria-label", name);
+				console.log("[TestVibe] aria-label set from name", {
+					tag: el.tagName?.toLowerCase?.() || null,
+					name,
+					id: el.id || null,
+				});
+				touched++;
+			}
+
+			state.namePatch.newElements += newElements;
+			state.namePatch.patched += touched;
+			return { touched, newElements };
+		}
+
+		function install({ debug = false } = {}) {
+			if (state.dispose) return state.dispose;
+
+			let patchScheduled = false;
+			let patching = false;
+			const schedulePatch = () => {
+				if (patching || patchScheduled) return;
+				patchScheduled = true;
+				setTimeout(() => {
+					patchScheduled = false;
+					patching = true;
+					try {
+						patchOnce({ debug });
+					} finally {
+						patching = false;
+					}
+				}, 0);
+			};
+
+			const rootNode = document.body || document.documentElement;
+			const observer = new MutationObserver(() => {
+				if (patching) return;
+				schedulePatch();
+			});
+			observer.observe(rootNode, {
+				childList: true,
+				subtree: true,
+				attributes: true,
+				attributeFilter: [
+					"name",
+					"role",
+					"aria-label",
+					"aria-labelledby",
+					"aria-haspopup",
+					"aria-expanded",
+					"aria-multiline",
+					"aria-placeholder",
+				],
+			});
+			schedulePatch();
+
+			state.dispose = () => observer.disconnect();
+			return state.dispose;
+		}
+
+		function waitForWisejApp({ timeoutMs = 15000, debug = false } = {}) {
+			const start = Date.now();
+			const tick = () => {
+				const root = getAppRoot();
+				if (root?.getChildren) {
+					state.installed = true;
+					install({ debug });
+					try {
+						patchOnce({ debug });
+					} catch {
+						// ignore
+					}
+					if (!state.readyLogged) {
+						state.readyLogged = true;
+						console.log("[TestVibe] READY");
+					}
+					return;
+				}
+				if (Date.now() - start > timeoutMs) {
+					if (debug)
+						console.warn("[TestVibe] Wisej ARIA patcher: app not detected (timeout)");
+					return;
+				}
+				setTimeout(tick, 50);
+			};
+			tick();
+		}
+
+		waitForWisejApp({ debug: false });
+	})();
+
 	function resolveComboBox(input) {
 		const core = getWisejCore();
 		const target = resolveComponentId(input);
