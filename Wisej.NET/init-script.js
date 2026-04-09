@@ -543,6 +543,12 @@
 				console.log("[TestVibe] Wisej ARIA patcher", { visited, patched });
 			}
 
+			try {
+				patchRibbonTabs(document.body || document.documentElement);
+			} catch {
+				// ignore
+			}
+
 			// Patch clickable tiles/links that are rendered as generic containers with cursor:pointer.
 			// Keep this conservative to avoid turning large containers into buttons.
 			try {
@@ -563,6 +569,67 @@
 			}
 
 			return { ok: true, visited, patched, namePatched };
+		}
+
+		function patchRibbonTabs(rootEl) {
+			if (!rootEl) return;
+
+			const tabLists = Array.from(
+				rootEl.querySelectorAll(
+					'[class*="qx-ribbonbar-tabview-bar"],[class*="qx-ribbonbar-tabview-page-button-container"]'
+				)
+			);
+
+			for (const tabList of tabLists) {
+				if (tabList.getAttribute("role") !== "tablist") {
+					tabList.setAttribute("role", "tablist");
+				}
+				if (!tabList.hasAttribute("aria-orientation")) {
+					tabList.setAttribute("aria-orientation", "horizontal");
+				}
+				if (
+					(!tabList.hasAttribute("aria-label") || isLowValueLabel(tabList.getAttribute("aria-label"))) &&
+					!tabList.hasAttribute("aria-labelledby")
+				) {
+					tabList.setAttribute("aria-label", "Ribbon Tabs");
+				}
+
+				const tabButtons = tabList.querySelectorAll(
+					'[name="button"][class*="qx-ribbonbar-tabview-page-button"],[class*="qx-ribbonbar-tabview-page-button"][name="button"]'
+				);
+				for (const tabButton of tabButtons) {
+					tabButton.setAttribute("role", "tab");
+
+					const labelElement =
+						tabButton.querySelector('[name="label"]') ||
+						tabButton.querySelector('[class*="qx-ribbonbar-tabview-page-button-label"]');
+					const labelText = firstMeaningfulString(
+						labelElement?.textContent,
+						labelElement?.innerText,
+						tabButton.getAttribute("aria-label"),
+						tabButton.textContent
+					);
+					if (
+						(!tabButton.hasAttribute("aria-label") || isLowValueLabel(tabButton.getAttribute("aria-label"))) &&
+						!tabButton.hasAttribute("aria-labelledby") &&
+						labelText
+					) {
+						tabButton.setAttribute("aria-label", labelText);
+					}
+
+					const cls = typeof tabButton.className === "string" ? tabButton.className : "";
+					const isSelected =
+						/\bchecked\b/i.test(cls) ||
+						/\bselected\b/i.test(cls) ||
+						tabButton.getAttribute("aria-pressed") === "true";
+					tabButton.setAttribute("aria-selected", isSelected ? "true" : "false");
+					tabButton.setAttribute("tabindex", isSelected ? "0" : "-1");
+
+					if (labelElement && !labelElement.hasAttribute("aria-hidden")) {
+						labelElement.setAttribute("aria-hidden", "true");
+					}
+				}
+			}
 		}
 
 		function patchPointerButtons(rootEl) {
