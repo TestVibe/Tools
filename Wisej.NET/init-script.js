@@ -688,6 +688,12 @@
 				// ignore
 			}
 
+			try {
+				patchNamedWidgetActions(document.body || document.documentElement);
+			} catch {
+				// ignore
+			}
+
 			let namePatched = null;
 			try {
 				namePatched = patchNameAttributes(document.body || document.documentElement);
@@ -833,6 +839,46 @@
 				}
 				touched++;
 			}
+		}
+
+		function patchNamedWidgetActions(rootEl) {
+			if (!rootEl) return { touched: 0 };
+
+			const cap = 1000;
+			let touched = 0;
+			const candidates = rootEl.querySelectorAll("[name]");
+			for (const el of candidates) {
+				if (touched >= cap) break;
+				if (el.nodeType !== 1 || !isVisible(el)) continue;
+
+				const widget = getWidgetForElement(el);
+				const className = qxClassName(widget);
+				const role = expectedRoleFor(className, widget, el);
+				if (!role || role !== "button") continue;
+
+				if (el.getAttribute("role") !== role) {
+					el.setAttribute("role", role);
+					touched++;
+				}
+
+				if (
+					(!el.hasAttribute("aria-label") || isLowValueLabel(el.getAttribute("aria-label"))) &&
+					!el.hasAttribute("aria-labelledby")
+				) {
+					const label = firstMeaningfulString(
+						tryCall(widget, "getToolTipText"),
+						tryCall(widget, "getText"),
+						tryCall(widget, "getLabel"),
+						el.getAttribute("name")
+					);
+					if (label) {
+						el.setAttribute("aria-label", label);
+						touched++;
+					}
+				}
+			}
+
+			return { touched };
 		}
 
 		function patchNameAttributes(rootEl) {
