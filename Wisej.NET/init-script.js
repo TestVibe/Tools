@@ -948,23 +948,38 @@
 		waitForWisejApp({ debug: false });
 	})();
 
+	function componentLooksLikeComboBox(component) {
+		const className = String(component?.classname || component?.constructor?.classname || "");
+		const looksLikeCombo = className.indexOf("ComboBox") > -1;
+		const hasComboApi = typeof component?.open === "function"
+			&& typeof component?.close === "function"
+			&& typeof component?.getSelectedIndex === "function"
+			&& typeof component?.setSelectedIndex === "function";
+
+		return looksLikeCombo || hasComboApi;
+	}
+
+	function componentLooksLikeDateTimePicker(component) {
+		const className = getClassName(component);
+		const looksLikeDateTimePicker = /(?:^|\.)DateTimePicker$/i.test(className);
+		const hasDateTimePickerApi =
+			typeof component?.getValue === "function" &&
+			typeof component?.setValue === "function" &&
+			typeof component?.getFormat === "function";
+
+		return looksLikeDateTimePicker || hasDateTimePickerApi;
+	}
+
 	function resolveComboBox(input) {
 		const core = getWisejCore();
 		const target = resolveComponentId(input);
-		const combo = resolveComponent(core, target);
+		const combo = resolveComponent(core, target, componentLooksLikeComboBox);
 
 		if (!combo) {
 			throw new Error(`Component not found: ${target}`);
 		}
 
-		const className = String(combo.classname || combo.constructor?.classname || "");
-		const looksLikeCombo = className.indexOf("ComboBox") > -1;
-		const hasComboApi = typeof combo.open === "function"
-			&& typeof combo.close === "function"
-			&& typeof combo.getSelectedIndex === "function"
-			&& typeof combo.setSelectedIndex === "function";
-
-		if (!looksLikeCombo && !hasComboApi) {
+		if (!componentLooksLikeComboBox(combo)) {
 			throw new Error(`Component ${target} is not a Wisej ComboBox.`);
 		}
 
@@ -974,20 +989,13 @@
 	function resolveDateTimePicker(input) {
 		const core = getWisejCore();
 		const target = resolveComponentId(input);
-		const picker = resolveComponent(core, target);
+		const picker = resolveComponent(core, target, componentLooksLikeDateTimePicker);
 
 		if (!picker) {
 			throw new Error(`Component not found: ${target}`);
 		}
 
-		const className = getClassName(picker);
-		const looksLikeDateTimePicker = /(?:^|\.)DateTimePicker$/i.test(className);
-		const hasDateTimePickerApi =
-			typeof picker.getValue === "function" &&
-			typeof picker.setValue === "function" &&
-			typeof picker.getFormat === "function";
-
-		if (!looksLikeDateTimePicker && !hasDateTimePickerApi) {
+		if (!componentLooksLikeDateTimePicker(picker)) {
 			throw new Error(`Component ${target} is not a Wisej DateTimePicker.`);
 		}
 
@@ -1084,6 +1092,50 @@
 			value: rawValue instanceof Date ? rawValue.toISOString() : rawValue,
 			displayText
 		};
+	}
+
+	function datePartsFromValue(value) {
+		if (value == null || value === "") {
+			return null;
+		}
+
+		const parsed = parseDateTimePickerValue({ value });
+		const date = parsed.date;
+		if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+			return null;
+		}
+
+		return {
+			year: date.getFullYear(),
+			month: date.getMonth() + 1,
+			day: date.getDate()
+		};
+	}
+
+	function sameDateParts(left, right) {
+		return !!left && !!right
+			&& left.year === right.year
+			&& left.month === right.month
+			&& left.day === right.day;
+	}
+
+	function dateTimePickerValueMatchesParsed(info, parsed) {
+		const expected = datePartsFromValue(parsed?.date);
+		if (!expected) {
+			return true;
+		}
+
+		for (const candidate of [info?.rawValue, info?.value, info?.displayText]) {
+			try {
+				if (sameDateParts(datePartsFromValue(candidate), expected)) {
+					return true;
+				}
+			} catch {
+				// Ignore non-date display fragments; the setter can still commit through the editor.
+			}
+		}
+
+		return false;
 	}
 
 	function getClassName(component) {
@@ -2746,23 +2798,37 @@
 		};
 	}
 
-	function resolveComponent(core, target) {
+	function resolveComponent(core, target, predicate) {
 		// First, try direct Wisej component id lookup.
 		let component = core.getComponent(target);
-		if (component) return component;
+		if (component && (!predicate || predicate(component))) return component;
+
+		let fallback = component || null;
 
 		// If direct lookup fails, treat target as a DOM-facing label/name/test id and resolve via DOM.
 		for (const selector of buildTargetSelectors(target)) {
-			const element = querySelectorElement(selector);
-			if (!element) {
+			const elements = querySelectorElements(selector);
+			if (!elements.length) {
 				continue;
 			}
 
-			component = resolveComponentFromElement(core, element);
-			if (component) return component;
+			for (const element of elements) {
+				component = resolveComponentFromElement(core, element);
+				if (!component) {
+					continue;
+				}
+
+				if (!fallback) {
+					fallback = component;
+				}
+
+				if (!predicate || predicate(component)) {
+					return component;
+				}
+			}
 		}
 
-		return null;
+		return predicate ? null : fallback;
 	}
 
 	function resolveComponentId(input) {
@@ -2839,6 +2905,16 @@
 		}
 
 		return doc.querySelector(selector);
+	}
+
+	function querySelectorElements(selector) {
+		const doc = globalThis.document || globalThis.window?.document;
+		if (!doc || typeof doc.querySelectorAll !== "function") {
+			const single = querySelectorElement(selector);
+			return single ? [single] : [];
+		}
+
+		return Array.from(doc.querySelectorAll(selector));
 	}
 
 	function buildTargetSelectors(target) {
@@ -2943,12 +3019,14 @@
 				input.displayText == null && input.displayValue == null
 					? null
 					: String(input.displayText ?? input.displayValue);
-			const displayText = displayOverride ?? getDateTimePickerValueInfo(picker).displayText;
-			const fallbackText = displayText || (parsed.source == null ? "" : String(parsed.source));
+			const afterSet = getDateTimePickerValueInfo(picker);
+			const fallbackText = displayOverride ?? (parsed.source == null ? "" : String(parsed.source));
+			const needsEditorCommit = displayOverride != null
+				|| !dateTimePickerValueMatchesParsed(afterSet, parsed);
 			let editorUpdated = false;
 			let inputUpdated = false;
 
-			if ((displayOverride != null || !displayText) && fallbackText) {
+			if (needsEditorCommit && fallbackText) {
 				editorUpdated = setEditorValue(getDateTimePickerEditor(picker), fallbackText);
 				const nativeInput = findEditableDomDescendant(getWidgetDomElement(picker));
 				inputUpdated = setNativeInputValue(nativeInput, fallbackText);

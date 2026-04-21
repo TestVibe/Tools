@@ -1,7 +1,7 @@
 {
   "name": "Wisej.NET",
   "description": "Wisej.NET provider tools for UI automation and interaction helpers.",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "entry": "./tools.js",
   "pageBound": true,
   "variables": [],
