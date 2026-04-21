@@ -1,6 +1,6 @@
 //#PackageDescription=Wisej.NET provider tools for UI automation and interaction helpers.
 //#PageBound=true
-//#PackageVersion=1.0.1
+//#PackageVersion=1.0.5
 function resolvePageBoundInput(input) {
 	const payload = input && typeof input === "object" && !Array.isArray(input)
 		? input
@@ -66,6 +66,67 @@ async function comboboxSetValue(input = {}) {
 //#Params=id,selector,ariaLabel
 async function comboboxGetValue(input = {}) {
 	return invokeWisejHelper("comboboxGetValue", input);
+}
+
+//#Example=List ComboBox items from a virtualized dropdown: { ariaLabel: "Confirmed", limit: 25 }.
+//#Summary=Get ComboBox items
+//#Description=Reads Wisej ComboBox dropdown items from the backing list or grid model, including virtualized rows that may not be in the DOM.
+//#ReturnsType=object
+//#ReturnsValue={"id":"luConfirmedFilter","source":"grid","rowCount":19,"items":[{"row":3,"text":"Fox, Sue"}]}
+//#Params=id,selector,ariaLabel,offset,limit,columns,includeValues,close,timeoutMs
+async function comboboxGetItems(input = {}) {
+	return invokeWisejHelper("comboboxGetItems", input);
+}
+
+//#Example=Set DateTimePicker value by label: { ariaLabel: "From", value: "01/03/2025" }.
+//#Example=Set DateTimePicker value by id: { id: "dateEditStart", value: "2025-03-01" }.
+//#Summary=Set DateTimePicker value
+//#Description=Sets a Wisej DateTimePicker value using a Date, ISO date, or day/month/year string.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dateEditStart","value":"2025-03-01T05:00:00.000Z","displayText":"01 March 2025"}
+//#Params=id,selector,ariaLabel,value,date,text,displayText,displayValue
+async function dateTimePickerSetValue(input = {}) {
+	return invokeWisejHelper("dateTimePickerSetValue", input);
+}
+
+//#Example=Get DateTimePicker value by label: { ariaLabel: "From" }.
+//#Summary=Get DateTimePicker value
+//#Description=Gets the current raw and displayed value from a Wisej DateTimePicker.
+//#ReturnsType=object
+//#ReturnsValue={"id":"dateEditStart","value":"2025-03-01T05:00:00.000Z","displayText":"01 March 2025"}
+//#Params=id,selector,ariaLabel
+async function dateTimePickerGetValue(input = {}) {
+	return invokeWisejHelper("dateTimePickerGetValue", input);
+}
+
+//#Example=List tree items from a virtualized or collapsed tree: { id: "trlstPayroll", limit: 100 }.
+//#Summary=Get Tree Items
+//#Description=Reads Wisej TreeView nodes from the backing model, including collapsed branches that may not be rendered in the DOM.
+//#ReturnsType=object
+//#ReturnsValue={"id":"trlstPayroll","count":24,"items":[{"text":"Cyclical Testing 3","path":["Cyclical Testing 3"],"childCount":4}]}
+//#Params=id,selector,ariaLabel,offset,limit,maxDepth,includeRoot
+async function treeGetItems(input = {}) {
+	return invokeWisejHelper("treeGetItems", input);
+}
+
+//#Example=Expand a tree item by path: { id: "trlstPayroll", path: ["Cyclical Testing 3"] }.
+//#Summary=Expand Tree Item
+//#Description=Expands or collapses a Wisej TreeView node by text or path using the backing tree model.
+//#ReturnsType=object
+//#ReturnsValue={"id":"trlstPayroll","text":"Cyclical Testing 3","open":true}
+//#Params=id,selector,ariaLabel,text,path,exact,open
+async function treeExpandItem(input = {}) {
+	return invokeWisejHelper("treeExpandItem", input);
+}
+
+//#Example=Select a tree item by path: { id: "trlstPayroll", path: ["Cyclical Testing 3", "498: 01/03/2025"] }.
+//#Summary=Select Tree Item
+//#Description=Selects a Wisej TreeView node by text or path, expands ancestors, scrolls it into view, and clicks the rendered row when available.
+//#ReturnsType=object
+//#ReturnsValue={"id":"trlstPayroll","text":"498: 01/03/2025","selected":true,"clicked":true}
+//#Params=id,selector,ariaLabel,text,path,exact,open,click,expandAncestors
+async function treeSelectItem(input = {}) {
+	return invokeWisejHelper("treeSelectItem", input);
 }
 
 //#Example=Set selected index: { selector: "[aria-label=\"luConfirmedFilter\"]", index: 2 }.
@@ -190,6 +251,36 @@ async function dataGridGetCellValue(input = {}) {
 	return invokeWisejHelper("dataGridGetCellValue", input);
 }
 
+//#Example=Get DataGrid rows from the backing model: { id: "gcSummary", limit: 25 }.
+//#Summary=Get DataGrid Rows
+//#Description=Reads Wisej DataGrid rows from the backing table model, including virtualized rows that may not be rendered in the DOM.
+//#ReturnsType=object
+//#ReturnsValue={"id":"gcSummary","rowCount":10,"rows":[{"row":1,"cells":[{"name":"Name","text":"Fox, Sue"}]}]}
+//#Params=id,selector,ariaLabel,offset,limit,columns
+async function dataGridGetRows(input = {}) {
+	return invokeWisejHelper("dataGridGetRows", input);
+}
+
+//#Example=Find a DataGrid cell by text: { id: "gcSummary", text: "Fox, Sue", columns: [4] }.
+//#Summary=Find DataGrid Cell
+//#Description=Finds a Wisej DataGrid cell by visible text using the backing table model.
+//#ReturnsType=object
+//#ReturnsValue={"id":"gcSummary","row":1,"col":4,"text":"Fox, Sue"}
+//#Params=id,selector,ariaLabel,text,exact,column,columns,row,col
+async function dataGridFindCell(input = {}) {
+	return invokeWisejHelper("dataGridFindCell", input);
+}
+
+//#Example=Select a DataGrid row by text: { id: "gcSummary", text: "Saxton, David", columns: [4] }.
+//#Summary=Select DataGrid Row
+//#Description=Scrolls a Wisej DataGrid row into view, focuses it, and clicks the rendered cell when available.
+//#ReturnsType=object
+//#ReturnsValue={"id":"gcSummary","row":6,"col":4,"text":"Saxton, David","clicked":true}
+//#Params=id,selector,ariaLabel,text,exact,column,columns,row,col
+async function dataGridSelectRow(input = {}) {
+	return invokeWisejHelper("dataGridSelectRow", input);
+}
+
 //#Example=Get DataGrid viewport info: { id: "dataGridView1" }.
 //#Summary=Get DataGrid Viewport Info
 //#Description=Returns viewport, focus, and row count information for a Wisej DataGrid.
@@ -205,6 +296,12 @@ module.exports = {
 	comboboxClose,
 	comboboxSetValue,
 	comboboxGetValue,
+	comboboxGetItems,
+	dateTimePickerSetValue,
+	dateTimePickerGetValue,
+	treeGetItems,
+	treeExpandItem,
+	treeSelectItem,
 	comboboxSetSelectedIndex,
 	comboboxGetSelectedIndex,
 	comboboxSetSelection,
@@ -217,5 +314,8 @@ module.exports = {
 	dataGridFocusCell,
 	dataGridEditCell,
 	dataGridGetCellValue,
+	dataGridGetRows,
+	dataGridFindCell,
+	dataGridSelectRow,
 	dataGridGetViewportInfo
 };

@@ -1,7 +1,7 @@
 {
   "name": "Wisej.NET",
   "description": "Wisej.NET provider tools for UI automation and interaction helpers.",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "entry": "./tools.js",
   "pageBound": true,
   "variables": [],
@@ -18,6 +18,24 @@
     },
     {
       "name": "comboboxGetValue"
+    },
+    {
+      "name": "comboboxGetItems"
+    },
+    {
+      "name": "dateTimePickerSetValue"
+    },
+    {
+      "name": "dateTimePickerGetValue"
+    },
+    {
+      "name": "treeGetItems"
+    },
+    {
+      "name": "treeExpandItem"
+    },
+    {
+      "name": "treeSelectItem"
     },
     {
       "name": "comboboxSetSelectedIndex"
@@ -54,6 +72,15 @@
     },
     {
       "name": "dataGridGetCellValue"
+    },
+    {
+      "name": "dataGridGetRows"
+    },
+    {
+      "name": "dataGridFindCell"
+    },
+    {
+      "name": "dataGridSelectRow"
     },
     {
       "name": "dataGridGetViewportInfo"

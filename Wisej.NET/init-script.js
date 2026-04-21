@@ -137,8 +137,100 @@
 			return null;
 		}
 
+		function getElementRect(el) {
+			if (!el || typeof el.getBoundingClientRect !== "function") return null;
+			const rect = el.getBoundingClientRect();
+			if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+			return rect;
+		}
+
+		function getWidgetLayoutParent(widget) {
+			return tryCall(widget, "getLayoutParent") || tryCall(widget, "getParent") || null;
+		}
+
+		function getSpatialLabelText(widget, dom) {
+			const text = firstMeaningfulString(
+				tryCall(widget, "getText"),
+				tryCall(widget, "getLabel"),
+				dom?.innerText,
+				dom?.textContent
+			);
+
+			if (!text || text.length > 80 || isLowValueLabel(text)) return null;
+			return text;
+		}
+
+		function inferSpatialLabel(widget, dom) {
+			if (!widget || !dom) return null;
+
+			const targetDom = findEditableDescendant(dom) || dom;
+			const targetRect = getElementRect(targetDom);
+			if (!targetRect) return null;
+
+			const parent = getWidgetLayoutParent(widget);
+			const siblings = parent?.getChildren?.() || [];
+			if (!Array.isArray(siblings) || siblings.length === 0) return null;
+
+			const targetCenterY = targetRect.top + targetRect.height / 2;
+			const targetCenterX = targetRect.left + targetRect.width / 2;
+			const candidates = [];
+
+			for (const sibling of siblings) {
+				if (!sibling || sibling === widget) continue;
+
+				const className = qxClassName(sibling);
+				if (!/wisej\.web\.(Label|LinkLabel)$/i.test(className || "")) continue;
+
+				const labelDom = getWidgetContentDomElement(sibling);
+				if (!labelDom || !isVisible(labelDom)) continue;
+
+				const label = getSpatialLabelText(sibling, labelDom);
+				if (!label) continue;
+
+				const labelRect = getElementRect(labelDom);
+				if (!labelRect) continue;
+
+				const labelCenterY = labelRect.top + labelRect.height / 2;
+				const labelCenterX = labelRect.left + labelRect.width / 2;
+				const verticalDelta = Math.abs(labelCenterY - targetCenterY);
+				const horizontalGap = targetRect.left - labelRect.right;
+				const verticalTolerance = Math.max(
+					10,
+					Math.max(labelRect.height, targetRect.height) * 0.85
+				);
+
+				// The common Wisej layout pattern places labels immediately left of the editor.
+				if (horizontalGap >= -4 && horizontalGap <= 260 && verticalDelta <= verticalTolerance) {
+					candidates.push({
+						label,
+						score: verticalDelta * 4 + Math.max(0, horizontalGap)
+					});
+					continue;
+				}
+
+				// Also support labels directly above an editor in compact/mobile layouts.
+				const verticalGap = targetRect.top - labelRect.bottom;
+				const horizontalOverlap =
+					Math.min(labelRect.right, targetRect.right) -
+					Math.max(labelRect.left, targetRect.left);
+				const minOverlap = Math.min(labelRect.width, targetRect.width) * 0.25;
+				if (verticalGap >= -4 && verticalGap <= 48 && horizontalOverlap >= minOverlap) {
+					candidates.push({
+						label,
+						score: verticalGap * 6 + Math.abs(labelCenterX - targetCenterX)
+					});
+				}
+			}
+
+			candidates.sort((a, b) => a.score - b.score);
+			return candidates[0]?.label || null;
+		}
+
 		function inferLabel(widget, dom) {
 			const resolvedWidget = widget || getWidgetForElement(dom);
+
+			const fromSpatialLabel = inferSpatialLabel(resolvedWidget, dom);
+			if (fromSpatialLabel) return fromSpatialLabel;
 
 			const fromWidget = firstMeaningfulString(
 				tryCall(resolvedWidget, "getText"),
@@ -147,8 +239,7 @@
 				tryCall(resolvedWidget, "getTitle"),
 				tryCall(resolvedWidget, "getToolTipText"),
 				tryCall(resolvedWidget, "getWatermark"),
-				tryCall(resolvedWidget, "getPlaceholderText"),
-				tryCall(resolvedWidget, "getName")
+				tryCall(resolvedWidget, "getPlaceholderText")
 			);
 			if (fromWidget) return fromWidget;
 
@@ -181,7 +272,7 @@
 				// ignore
 			}
 
-			return null;
+			return firstMeaningfulString(tryCall(resolvedWidget, "getName"));
 		}
 
 		function isProbablyInternalName(label) {
@@ -213,6 +304,7 @@
 
 			if (
 				/qx\.ui\.tabview\.TabButton$/i.test(className) ||
+				/wisej\.web\.tabcontrol\.TabButton$/i.test(className) ||
 				/\bqx-ribbonbar-tabview-page-button\b/i.test(domClass)
 			)
 				return "tab";
@@ -227,7 +319,7 @@
 				return "button";
 			if (/wisej\.web\.CheckBox$/i.test(className)) return "checkbox";
 			if (/wisej\.web\.RadioButton$/i.test(className)) return "radio";
-			if (/wisej\.web\.(TextBox|MaskedTextBox|TextBoxBase)$/i.test(className))
+			if (/wisej\.web\.(DateTimePicker|TextBox|MaskedTextBox|TextBoxBase)$/i.test(className))
 				return "textbox";
 			if (
 				/wisej\.web\.(?:\w+ComboBox|SelectBox|DropDownList|LookupBox|DataLookup)$/i.test(className) ||
@@ -354,6 +446,31 @@
 			return { cellsPatched, headersPatched, rowsPatched, touched };
 		}
 
+		function getStableControlKey(widget, dom) {
+			return firstString(
+				tryCall(widget, "getName"),
+				widget?.name,
+				tryCall(widget, "getId"),
+				dom?.getAttribute?.("data-wisej-id"),
+				dom?.getAttribute?.("data-testid"),
+				dom?.getAttribute?.("name"),
+				dom?.id
+			);
+		}
+
+		function copyStableEditableAttributes(widget, dom, editableTarget) {
+			if (!editableTarget || editableTarget === dom) return;
+
+			const stableKey = getStableControlKey(widget, dom);
+			if (!stableKey) return;
+
+			for (const attributeName of ["name", "data-testid", "data-wisej-id"]) {
+				if (!editableTarget.hasAttribute(attributeName)) {
+					editableTarget.setAttribute(attributeName, stableKey);
+				}
+			}
+		}
+
 		function applyRoleAndLabel(widget, dom, className) {
 			const expected = expectedRoleFor(className, widget, dom);
 			if (!expected) return false;
@@ -372,6 +489,7 @@
 			if (editableTarget) {
 				// Don't assign textbox/combobox role to the wrapper. Let wrapper remain generic and label the input.
 				if (current === expectedRole) dom.removeAttribute("role");
+				copyStableEditableAttributes(widget, dom, editableTarget);
 
 				if (!editableTarget.hasAttribute("role") && expectedRole === "combobox") {
 					// Input elements don't natively have the combobox role.
@@ -446,9 +564,14 @@
 				const selected = /\bchecked\b/i.test(cls) || !!tryCall(widget, "getValue");
 				dom.setAttribute("aria-selected", selected ? "true" : "false");
 
-				const tabList =
+				const ribbonTabList =
 					dom.closest?.('[class*="qx-ribbonbar-tabview-bar"]') ||
 					dom.parentElement?.closest?.('[class*="qx-ribbonbar-tabview"]') ||
+					null;
+				const tabList =
+					ribbonTabList ||
+					dom.parentElement?.closest?.('[name="bar"]') ||
+					dom.parentElement?.closest?.('[class*="tabview"],[class*="tabcontrol"]') ||
 					null;
 				if (tabList) {
 					if (tabList.getAttribute("role") !== "tablist") {
@@ -459,7 +582,7 @@
 							isLowValueLabel(tabList.getAttribute("aria-label"))) &&
 						!tabList.hasAttribute("aria-labelledby")
 					) {
-						tabList.setAttribute("aria-label", "Ribbon Tabs");
+						tabList.setAttribute("aria-label", ribbonTabList ? "Ribbon Tabs" : "Tabs");
 					}
 				}
 			}
@@ -848,6 +971,121 @@
 		return combo;
 	}
 
+	function resolveDateTimePicker(input) {
+		const core = getWisejCore();
+		const target = resolveComponentId(input);
+		const picker = resolveComponent(core, target);
+
+		if (!picker) {
+			throw new Error(`Component not found: ${target}`);
+		}
+
+		const className = getClassName(picker);
+		const looksLikeDateTimePicker = /(?:^|\.)DateTimePicker$/i.test(className);
+		const hasDateTimePickerApi =
+			typeof picker.getValue === "function" &&
+			typeof picker.setValue === "function" &&
+			typeof picker.getFormat === "function";
+
+		if (!looksLikeDateTimePicker && !hasDateTimePickerApi) {
+			throw new Error(`Component ${target} is not a Wisej DateTimePicker.`);
+		}
+
+		return picker;
+	}
+
+	function parseDateTimePickerValue(input) {
+		const rawValue = input?.date ?? input?.value ?? input?.text ?? input?.displayText;
+		if (rawValue == null || rawValue === "") {
+			return { date: null, source: rawValue };
+		}
+
+		if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+			return { date: rawValue, source: rawValue };
+		}
+
+		const value = String(rawValue).trim();
+		let match = value.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:\s+.*)?$/);
+		if (match) {
+			const day = Number(match[1]);
+			const month = Number(match[2]);
+			const year = Number(match[3]);
+			return { date: new Date(year, month - 1, day), source: rawValue };
+		}
+
+		match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+		if (match) {
+			const year = Number(match[1]);
+			const month = Number(match[2]);
+			const day = Number(match[3]);
+			return { date: new Date(year, month - 1, day), source: rawValue };
+		}
+
+		const parsed = new Date(value);
+		if (!Number.isNaN(parsed.getTime())) {
+			return { date: parsed, source: rawValue };
+		}
+
+		throw new Error(`Unable to parse DateTimePicker value: ${value}`);
+	}
+
+	function findEditableDomDescendant(root) {
+		if (!root || root.nodeType !== 1) {
+			return null;
+		}
+
+		if (root.matches?.('input:not([type="hidden"]),textarea,[contenteditable="true"]')) {
+			return root;
+		}
+
+		return (
+			root.querySelector?.('input:not([type="hidden"]),textarea,[contenteditable="true"]') ||
+			null
+		);
+	}
+
+	function getDateTimePickerEditor(picker) {
+		for (const candidate of [
+			callWidgetMethod(picker, "getEditor"),
+			callWidgetMethod(picker, "getTextField"),
+			callWidgetMethod(picker, "getTextBox"),
+			callWidgetMethod(picker, "getChildControl", "textfield", true),
+			callWidgetMethod(picker, "getChildControl", "editor", true),
+			callWidgetMethod(picker, "getChildControl", "textbox", true)
+		]) {
+			if (candidate) {
+				return candidate;
+			}
+		}
+
+		return null;
+	}
+
+	function setNativeInputValue(inputElement, value) {
+		if (!inputElement) {
+			return false;
+		}
+
+		const text = value == null ? "" : String(value);
+		inputElement.focus?.();
+		inputElement.value = text;
+		inputElement.dispatchEvent(new Event("input", { bubbles: true }));
+		inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+		return true;
+	}
+
+	function getDateTimePickerValueInfo(picker) {
+		const rawValue = typeof picker?.getValue === "function" ? picker.getValue() : null;
+		const displayText = getDomDisplayedText(getWidgetDomElement(picker));
+		return {
+			id: typeof picker?.getId === "function" ? picker.getId() : null,
+			className: getClassName(picker),
+			rawValue,
+			value: rawValue instanceof Date ? rawValue.toISOString() : rawValue,
+			displayText
+		};
+	}
+
 	function getClassName(component) {
 		return String(component?.classname || component?.constructor?.classname || "");
 	}
@@ -1042,6 +1280,32 @@
 		}
 
 		return grid;
+	}
+
+	function resolveTreeControl(input) {
+		const core = getWisejCore();
+		const target = resolveComponentId(input);
+		const tree = resolveComponent(core, target);
+
+		if (!tree) {
+			throw new Error(`Component not found: ${target}`);
+		}
+
+		const className = getClassName(tree);
+		const looksLikeTree = className.indexOf("Tree") > -1;
+		const hasTreeApi =
+			typeof tree.getRootNode === "function"
+			&& (
+				typeof tree.ensureVisible === "function"
+				|| typeof tree.setSelectedNodes === "function"
+				|| typeof tree.setSelection === "function"
+			);
+
+		if (!looksLikeTree && !hasTreeApi) {
+			throw new Error(`Component ${target} is not a supported Wisej tree control.`);
+		}
+
+		return tree;
 	}
 
 	function ensureNonNegativeInteger(value, name) {
@@ -1329,6 +1593,93 @@
 		};
 	}
 
+	function getComboItems(combo, input = {}) {
+		const offset = Number.isInteger(input.offset) && input.offset > 0 ? input.offset : 0;
+		const limit = Number.isInteger(input.limit)
+			? Math.max(0, Math.min(input.limit, 1000))
+			: 100;
+		const requestedColumns = Array.isArray(input.columns)
+			? input.columns.filter((value) => Number.isInteger(value) && value >= 0)
+			: null;
+
+		const grid = resolveComboDropDownGrid(combo);
+		if (grid) {
+			const model = getDataGridTableModel(grid);
+			const rowCount = getDataGridRowCount(grid, model) ?? 0;
+			const columnCount = getDataGridColumnCount(grid, model) ?? 0;
+			const columns = requestedColumns && requestedColumns.length > 0
+				? requestedColumns.filter((column) => column < columnCount)
+				: Array.from({ length: columnCount }, (_, index) => index);
+			const items = [];
+			const end = Math.min(rowCount, offset + limit);
+
+			for (let row = offset; row < end; row++) {
+				const values = [];
+				for (const col of columns) {
+					values.push({ col, value: model.getValue(col, row) });
+				}
+
+				const displayValue = [...values]
+					.reverse()
+					.map((cell) => getGridCellText(cell.value))
+					.find((text) => hasLookupText(text)) || null;
+
+				items.push({
+					row,
+					text: displayValue,
+					values: input.includeValues === false ? undefined : values
+				});
+			}
+
+			return {
+				id: combo.getId(),
+				className: getClassName(combo),
+				source: "grid",
+				rowCount,
+				columnCount,
+				offset,
+				limit,
+				items
+			};
+		}
+
+		const list = resolveComboDropDownList(combo);
+		const model = list?.getModel?.();
+		if (model?.getLength && model?.getItem) {
+			const count = model.getLength();
+			const items = [];
+			const end = Math.min(count, offset + limit);
+
+			for (let index = offset; index < end; index++) {
+				const item = model.getItem(index);
+				items.push({
+					index,
+					text: getListItemText(item),
+					value: input.includeValues === false ? undefined : item
+				});
+			}
+
+			return {
+				id: combo.getId(),
+				className: getClassName(combo),
+				source: "list",
+				count,
+				offset,
+				limit,
+				items
+			};
+		}
+
+		return {
+			id: combo.getId(),
+			className: getClassName(combo),
+			source: "none",
+			offset,
+			limit,
+			items: []
+		};
+	}
+
 	function normalizeLookupText(value) {
 		return String(value == null ? "" : value)
 			.trim()
@@ -1348,7 +1699,57 @@
 			return false;
 		}
 
-		return exact ? candidateText === expectedText : candidateText.indexOf(expectedText) > -1;
+		const candidateVariants = getLookupTextVariants(candidate);
+		const expectedVariants = getLookupTextVariants(expected);
+
+		for (const candidateVariant of candidateVariants) {
+			for (const expectedVariant of expectedVariants) {
+				if (exact) {
+					if (candidateVariant === expectedVariant) return true;
+					continue;
+				}
+
+				if (candidateVariant.indexOf(expectedVariant) > -1) return true;
+
+				const expectedWords = expectedVariant.split(" ").filter(Boolean);
+				if (
+					expectedWords.length >= 2 &&
+					expectedWords.every((word) => candidateVariant.split(" ").includes(word))
+				) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	function getLookupTextVariants(value) {
+		const normalized = normalizeLookupText(value);
+		if (!normalized) {
+			return [];
+		}
+
+		const variants = [];
+		const seen = new Set();
+		const push = (candidate) => {
+			const text = normalizeLookupText(candidate);
+			if (!text || seen.has(text)) return;
+			seen.add(text);
+			variants.push(text);
+		};
+
+		push(normalized);
+		push(normalized.replace(/[,\u2019']/g, " "));
+
+		const commaParts = normalized.split(",");
+		if (commaParts.length === 2) {
+			const left = commaParts[0].trim();
+			const right = commaParts[1].trim();
+			push(`${right} ${left}`);
+		}
+
+		return variants;
 	}
 
 	function getListItemText(item) {
@@ -1428,6 +1829,24 @@
 		return null;
 	}
 
+	function getDataGridColumns(grid, model) {
+		const columnCount = getDataGridColumnCount(grid, model);
+		if (!Number.isInteger(columnCount) || columnCount < 0) {
+			throw new Error("Unable to determine DataGrid column count.");
+		}
+
+		const columns = [];
+		for (let col = 0; col < columnCount; col++) {
+			columns.push({
+				col,
+				name: typeof model?.getColumnName === "function" ? model.getColumnName(col) : null,
+				id: typeof model?.getColumnId === "function" ? model.getColumnId(col) : null
+			});
+		}
+
+		return columns;
+	}
+
 	function getGridCellText(value) {
 		if (value == null) {
 			return null;
@@ -1485,6 +1904,462 @@
 		}
 
 		return null;
+	}
+
+	function getDataGridRows(grid, input = {}) {
+		const model = getDataGridTableModel(grid);
+		const rowCount = getDataGridRowCount(grid, model);
+		const allColumns = getDataGridColumns(grid, model);
+		if (!Number.isInteger(rowCount) || rowCount < 0) {
+			throw new Error("Unable to determine DataGrid row count.");
+		}
+
+		const requestedColumns = Array.isArray(input.columns)
+			? input.columns.filter((value) => Number.isInteger(value) && value >= 0 && value < allColumns.length)
+			: null;
+		const columns = requestedColumns && requestedColumns.length > 0
+			? requestedColumns.map((col) => allColumns[col])
+			: allColumns;
+		const offset = Number.isInteger(input.offset) && input.offset > 0 ? input.offset : 0;
+		const limit = Number.isInteger(input.limit)
+			? Math.max(0, Math.min(input.limit, 2000))
+			: 100;
+		const rows = [];
+		const end = Math.min(rowCount, offset + limit);
+
+		for (let row = offset; row < end; row++) {
+			rows.push({
+				row,
+				cells: columns.map((column) => {
+					const value = model.getValue(column.col, row);
+					return {
+						col: column.col,
+						name: column.name,
+						id: column.id,
+						value,
+						text: getGridCellText(value)
+					};
+				})
+			});
+		}
+
+		return {
+			id: grid.getId(),
+			className: getClassName(grid),
+			rowCount,
+			columnCount: allColumns.length,
+			columns: allColumns,
+			offset,
+			limit,
+			rows
+		};
+	}
+
+	function getDataGridCellMatch(grid, input = {}) {
+		if (input.row != null) {
+			ensureNonNegativeInteger(input.row, "row");
+			const model = getDataGridTableModel(grid);
+			const rowCount = getDataGridRowCount(grid, model);
+			const columnCount = getDataGridColumnCount(grid, model);
+			if (input.row >= rowCount) {
+				throw new Error(`Row ${input.row} is outside the DataGrid row range.`);
+			}
+
+			const col = Number.isInteger(input.col) && input.col >= 0 && input.col < columnCount
+				? input.col
+				: 0;
+			return {
+				row: input.row,
+				col,
+				text: getGridCellText(model.getValue(col, input.row))
+			};
+		}
+
+		const exact = input.exact !== false;
+		const columns = Array.isArray(input.columns)
+			? input.columns
+			: (Number.isInteger(input.column) ? [input.column] : null);
+		const match = findDataGridCellByText(grid, input.text, exact, columns);
+		if (!match) {
+			throw new Error(`No DataGrid cell matched text: ${input.text}`);
+		}
+
+		return match;
+	}
+
+	async function selectDataGridRow(grid, input = {}) {
+		const match = getDataGridCellMatch(grid, input);
+
+		if (typeof grid.scrollCellVisible === "function") {
+			grid.scrollCellVisible(match.col, match.row, null, null);
+		}
+		if (typeof grid.setFocusedCell === "function") {
+			grid.setFocusedCell(match.col, match.row, true, true, false);
+		}
+
+		await flushUi(3);
+		await wait(50);
+
+		let clicked = false;
+		let clickedText = null;
+		const root = getWidgetDomElement(grid);
+		const lookupText = match.text || input.text;
+		const element = findClickableTextElement(root, lookupText, input.exact !== false)
+			|| findClickableTextElement(root, lookupText, false);
+		if (element) {
+			clickedText = getNodeTextValue(element) || lookupText;
+			clicked = dispatchClick(element);
+			await flushUi(3);
+			await wait(150);
+		}
+
+		return {
+			id: grid.getId(),
+			className: getClassName(grid),
+			row: match.row,
+			col: match.col,
+			text: match.text,
+			clicked,
+			clickedText
+		};
+	}
+
+	function getTreeNodeLabel(node) {
+		return getLookupTextValue(callWidgetMethod(node, "getLabel"))
+			|| getLookupTextValue(callWidgetMethod(node, "getText"))
+			|| getLookupTextValue(callWidgetMethod(node, "getCaption"))
+			|| getLookupTextValue(node?.label)
+			|| getLookupTextValue(node?.text)
+			|| getLookupTextValue(node?.caption)
+			|| getDomDisplayedText(getWidgetDomElement(node));
+	}
+
+	function toArrayLikeItems(value) {
+		if (!value) {
+			return [];
+		}
+		if (Array.isArray(value)) {
+			return value;
+		}
+		if (typeof value.toArray === "function") {
+			const array = value.toArray();
+			return Array.isArray(array) ? array : [];
+		}
+		if (typeof value.getLength === "function" && typeof value.getItem === "function") {
+			const items = [];
+			for (let index = 0; index < value.getLength(); index++) {
+				items.push(value.getItem(index));
+			}
+			return items;
+		}
+		return [];
+	}
+
+	function getTreeNodeChildren(node) {
+		return toArrayLikeItems(
+			callWidgetMethod(node, "getChildren")
+			|| callWidgetMethod(node, "getItems")
+			|| callWidgetMethod(node, "getNodes")
+			|| node?.children
+			|| node?.items
+		).filter(Boolean);
+	}
+
+	function getTreeNodeParent(node) {
+		return callWidgetMethod(node, "getParentNode")
+			|| callWidgetMethod(node, "getParent")
+			|| node?.parentNode
+			|| node?.parent
+			|| null;
+	}
+
+	function getTreeNodeOpen(node) {
+		const open = callWidgetMethod(node, "getOpen");
+		if (open != null) {
+			return Boolean(open);
+		}
+
+		const isOpen = callWidgetMethod(node, "isOpen");
+		return isOpen == null ? null : Boolean(isOpen);
+	}
+
+	function setTreeNodeOpen(node, value) {
+		if (!node) {
+			return false;
+		}
+		if (typeof node.setOpen === "function") {
+			node.setOpen(Boolean(value));
+			return true;
+		}
+		if (typeof node.open === "function" && value) {
+			node.open();
+			return true;
+		}
+		if (typeof node.close === "function" && !value) {
+			node.close();
+			return true;
+		}
+		return false;
+	}
+
+	function getTreeRootNode(tree) {
+		const root = callWidgetMethod(tree, "getRootNode") || callWidgetMethod(tree, "getRoot");
+		if (!root) {
+			throw new Error("Unable to inspect tree root node.");
+		}
+		return root;
+	}
+
+	function normalizeTreePath(path) {
+		if (Array.isArray(path)) {
+			return path.map((part) => String(part || "").trim()).filter(Boolean);
+		}
+		if (typeof path === "string") {
+			return path.split(">").map((part) => part.trim()).filter(Boolean);
+		}
+		return [];
+	}
+
+	function collectTreeItems(tree, input = {}) {
+		const root = getTreeRootNode(tree);
+		const includeRoot = input.includeRoot === true;
+		const maxDepth = Number.isInteger(input.maxDepth) && input.maxDepth >= 0 ? input.maxDepth : 100;
+		const offset = Number.isInteger(input.offset) && input.offset > 0 ? input.offset : 0;
+		const limit = Number.isInteger(input.limit)
+			? Math.max(0, Math.min(input.limit, 2000))
+			: 500;
+		const items = [];
+		let visited = 0;
+		let returned = 0;
+
+		const visit = (node, path, depth) => {
+			if (!node || depth > maxDepth) {
+				return;
+			}
+
+			const includeNode = includeRoot || node !== root;
+			const label = getTreeNodeLabel(node);
+			const nodePath = includeNode && label ? [...path, label] : path;
+
+			if (includeNode) {
+				if (visited >= offset && returned < limit) {
+					const children = getTreeNodeChildren(node);
+					items.push({
+						index: visited,
+						depth: includeRoot ? depth : Math.max(0, depth - 1),
+						text: label,
+						path: nodePath,
+						open: getTreeNodeOpen(node),
+						childCount: children.length
+					});
+					returned++;
+				}
+				visited++;
+			}
+
+			for (const child of getTreeNodeChildren(node)) {
+				visit(child, nodePath, depth + 1);
+			}
+		};
+
+		visit(root, [], 0);
+
+		return {
+			id: tree.getId(),
+			className: getClassName(tree),
+			count: visited,
+			offset,
+			limit,
+			items
+		};
+	}
+
+	function findTreeNodeByPath(tree, pathParts, exact) {
+		const root = getTreeRootNode(tree);
+		if (!Array.isArray(pathParts) || pathParts.length === 0) {
+			return null;
+		}
+
+		let current = root;
+		const matchedPath = [];
+
+		for (const part of pathParts) {
+			const children = getTreeNodeChildren(current);
+			let next = children.find((child) => matchesLookupText(getTreeNodeLabel(child), part, exact));
+			if (!next && exact) {
+				next = children.find((child) => matchesLookupText(getTreeNodeLabel(child), part, false));
+			}
+			if (!next) {
+				return null;
+			}
+
+			current = next;
+			matchedPath.push(getTreeNodeLabel(current) || part);
+		}
+
+		return { node: current, text: getTreeNodeLabel(current), path: matchedPath };
+	}
+
+	function findTreeNodeByText(tree, text, exact) {
+		if (typeof text !== "string" || text.trim().length === 0) {
+			throw new Error("Parameter 'text' must be a non-empty string.");
+		}
+
+		const root = getTreeRootNode(tree);
+		let fallback = null;
+
+		const visit = (node, path) => {
+			if (!node) {
+				return null;
+			}
+
+			const label = getTreeNodeLabel(node);
+			const nodePath = label ? [...path, label] : path;
+			if (node !== root) {
+				if (matchesLookupText(label, text, exact)) {
+					return { node, text: label, path: nodePath };
+				}
+				if (!fallback && exact && matchesLookupText(label, text, false)) {
+					fallback = { node, text: label, path: nodePath };
+				}
+			}
+
+			for (const child of getTreeNodeChildren(node)) {
+				const result = visit(child, nodePath);
+				if (result) {
+					return result;
+				}
+			}
+
+			return null;
+		};
+
+		return visit(root, []) || fallback;
+	}
+
+	function findTreeNode(tree, input = {}) {
+		const exact = input.exact !== false;
+		const path = normalizeTreePath(input.path);
+		if (path.length > 0) {
+			return findTreeNodeByPath(tree, path, exact);
+		}
+
+		return findTreeNodeByText(tree, input.text, exact);
+	}
+
+	function expandTreeNodeAncestors(node) {
+		const ancestors = [];
+		let parent = getTreeNodeParent(node);
+		while (parent) {
+			ancestors.unshift(parent);
+			parent = getTreeNodeParent(parent);
+		}
+
+		for (const ancestor of ancestors) {
+			setTreeNodeOpen(ancestor, true);
+		}
+	}
+
+	function getTreeSelectedNodes(tree) {
+		return toArrayLikeItems(
+			callWidgetMethod(tree, "getSelectedNodes")
+			|| callWidgetMethod(tree, "getSelection")
+			|| []
+		);
+	}
+
+	function isTreeNodeSelected(tree, node) {
+		return getTreeSelectedNodes(tree).includes(node);
+	}
+
+	function setTreeSelection(tree, node) {
+		if (typeof tree.setSelectedNodes === "function") {
+			tree.setSelectedNodes([node]);
+			return true;
+		}
+		if (typeof tree.setSelection === "function") {
+			tree.setSelection([node]);
+			return true;
+		}
+		return false;
+	}
+
+	function getTreeNodeDomElement(tree, node) {
+		for (const candidate of [
+			callWidgetMethod(tree, "getTreeItem", node),
+			callWidgetMethod(tree, "getItem", node),
+			node
+		]) {
+			const dom = getWidgetDomElement(candidate) || getDomElement(candidate);
+			if (dom) {
+				return dom;
+			}
+		}
+
+		return null;
+	}
+
+	function findTreeNodeClickableElement(tree, node, text, exact) {
+		const itemDom = getTreeNodeDomElement(tree, node);
+		if (itemDom) {
+			return findClickableTextElement(itemDom, text, exact) || itemDom;
+		}
+
+		const root = getWidgetDomElement(tree);
+		return findClickableTextElement(root, text, exact);
+	}
+
+	async function selectTreeNode(tree, match, input = {}) {
+		const node = match?.node;
+		if (!node) {
+			throw new Error("Tree node match is missing.");
+		}
+
+		if (input.expandAncestors !== false) {
+			expandTreeNodeAncestors(node);
+		}
+
+		if (input.open === true) {
+			setTreeNodeOpen(node, true);
+		}
+
+		if (typeof tree.ensureVisible === "function") {
+			tree.ensureVisible(node);
+		}
+
+		await flushUi(4);
+		await wait(50);
+
+		let clicked = false;
+		let clickedText = null;
+		const label = match.text || getTreeNodeLabel(node);
+		if (input.click !== false) {
+			const element = findTreeNodeClickableElement(tree, node, label, true)
+				|| findTreeNodeClickableElement(tree, node, label, false);
+			if (element) {
+				clickedText = getNodeTextValue(element) || label;
+				clicked = dispatchClick(element);
+				await flushUi(3);
+				await wait(150);
+			}
+		}
+
+		let selected = isTreeNodeSelected(tree, node);
+		if (!selected) {
+			selected = setTreeSelection(tree, node);
+			await flushUi(2);
+		}
+
+		return {
+			id: tree.getId(),
+			className: getClassName(tree),
+			text: label,
+			path: match.path,
+			open: getTreeNodeOpen(node),
+			selected: isTreeNodeSelected(tree, node) || selected,
+			clicked,
+			clickedText
+		};
 	}
 
 	function getDomElement(handle) {
@@ -2039,6 +2914,94 @@
 			return getComboValueInfo(combo);
 		},
 
+		comboboxGetItems: async function(input = {}) {
+			const combo = resolveComboBox(input);
+			const shouldClose = input.close !== false;
+			await ensureComboOpened(combo, Number.isFinite(input.timeoutMs) ? input.timeoutMs : 2000);
+			await flushUi(2);
+			const result = getComboItems(combo, input);
+			if (shouldClose && typeof combo?.close === "function") {
+				combo.close();
+			}
+			return result;
+		},
+
+		dateTimePickerSetValue: async function(input = {}) {
+			const picker = resolveDateTimePicker(input);
+			const parsed = parseDateTimePickerValue(input);
+			const before = getDateTimePickerValueInfo(picker);
+			let setByPicker = false;
+
+			if (typeof picker.setValue === "function") {
+				picker.setValue(parsed.date);
+				setByPicker = true;
+			}
+
+			await flushUi(2);
+
+			const displayOverride =
+				input.displayText == null && input.displayValue == null
+					? null
+					: String(input.displayText ?? input.displayValue);
+			const displayText = displayOverride ?? getDateTimePickerValueInfo(picker).displayText;
+			const fallbackText = displayText || (parsed.source == null ? "" : String(parsed.source));
+			let editorUpdated = false;
+			let inputUpdated = false;
+
+			if ((displayOverride != null || !displayText) && fallbackText) {
+				editorUpdated = setEditorValue(getDateTimePickerEditor(picker), fallbackText);
+				const nativeInput = findEditableDomDescendant(getWidgetDomElement(picker));
+				inputUpdated = setNativeInputValue(nativeInput, fallbackText);
+			}
+
+			await flushUi(2);
+
+			return {
+				...getDateTimePickerValueInfo(picker),
+				previousValue: before.value,
+				setByPicker,
+				editorUpdated,
+				inputUpdated
+			};
+		},
+
+		dateTimePickerGetValue(input = {}) {
+			const picker = resolveDateTimePicker(input);
+			return getDateTimePickerValueInfo(picker);
+		},
+
+		treeGetItems(input = {}) {
+			const tree = resolveTreeControl(input);
+			return collectTreeItems(tree, input);
+		},
+
+		treeExpandItem(input = {}) {
+			const tree = resolveTreeControl(input);
+			const match = findTreeNode(tree, input);
+			if (!match) {
+				throw new Error(`No tree item matched: ${input.text || normalizeTreePath(input.path).join(" > ")}`);
+			}
+
+			setTreeNodeOpen(match.node, input.open !== false);
+			return {
+				id: tree.getId(),
+				className: getClassName(tree),
+				text: match.text,
+				path: match.path,
+				open: getTreeNodeOpen(match.node)
+			};
+		},
+
+		async treeSelectItem(input = {}) {
+			const tree = resolveTreeControl(input);
+			const match = findTreeNode(tree, input);
+			if (!match) {
+				throw new Error(`No tree item matched: ${input.text || normalizeTreePath(input.path).join(" > ")}`);
+			}
+
+			return selectTreeNode(tree, match, input);
+		},
+
 		comboboxSetSelectedIndex(input = {}) {
 			if (!Number.isInteger(input.index)) {
 				throw new Error("Parameter 'index' must be an integer.");
@@ -2255,6 +3218,25 @@
 				col: input.col,
 				value: model.getValue(input.col, input.row)
 			};
+		},
+
+		dataGridGetRows(input = {}) {
+			const grid = resolveDataGrid(input);
+			return getDataGridRows(grid, input);
+		},
+
+		dataGridFindCell(input = {}) {
+			const grid = resolveDataGrid(input);
+			return {
+				id: grid.getId(),
+				className: getClassName(grid),
+				...getDataGridCellMatch(grid, input)
+			};
+		},
+
+		async dataGridSelectRow(input = {}) {
+			const grid = resolveDataGrid(input);
+			return selectDataGridRow(grid, input);
 		},
 
 		dataGridGetViewportInfo(input = {}) {
