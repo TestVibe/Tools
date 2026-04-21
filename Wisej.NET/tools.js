@@ -291,7 +291,18 @@ async function dataGridGetViewportInfo(input = {}) {
 	return invokeWisejHelper("dataGridGetViewportInfo", input);
 }
 
+//#Example=Get visible controls and selectors: { limit: 50 }.
+//#Summary=Get Automation Snapshot
+//#Description=Returns visible interactive controls with roles, labels, stable selector suggestions, and bounding boxes.
+//#ReturnsType=object
+//#ReturnsValue={"count":2,"items":[{"role":"button","name":"Save","locator":"page.getByRole(\"button\", { name: \"Save\" })"}]}
+//#Params=selector,limit
+async function automationSnapshot(input = {}) {
+	return invokeWisejHelper("automationSnapshot", input);
+}
+
 module.exports = {
+	automationSnapshot,
 	comboboxOpen,
 	comboboxClose,
 	comboboxSetValue,

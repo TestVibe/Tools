@@ -1138,6 +1138,24 @@
 		return false;
 	}
 
+	function dateTimePickerDisplayMatchesParsed(info, parsed) {
+		const expected = datePartsFromValue(parsed?.date);
+		if (!expected) {
+			return true;
+		}
+
+		const displayText = info?.displayText;
+		if (!displayText) {
+			return false;
+		}
+
+		try {
+			return sameDateParts(datePartsFromValue(displayText), expected);
+		} catch {
+			return false;
+		}
+	}
+
 	function getClassName(component) {
 		return String(component?.classname || component?.constructor?.classname || "");
 	}
@@ -2966,7 +2984,270 @@
 		return core;
 	}
 
+	function jsStringLiteral(value) {
+		return JSON.stringify(String(value || ""));
+	}
+
+	function automationNormalizeString(value) {
+		if (typeof value !== "string") return null;
+		const trimmed = value.replace(/\s+/g, " ").trim();
+		return trimmed || null;
+	}
+
+	function automationFirstString(...values) {
+		for (const value of values) {
+			const trimmed = automationNormalizeString(value);
+			if (trimmed) return trimmed;
+		}
+		return null;
+	}
+
+	function automationFirstMeaningfulString(...values) {
+		let fallback = null;
+		for (const value of values) {
+			const normalized = automationNormalizeString(value);
+			if (!normalized) continue;
+			fallback ??= normalized;
+			if (!automationIsLowValueLabel(normalized)) {
+				return normalized;
+			}
+		}
+		return fallback;
+	}
+
+	function automationIsLowValueLabel(value) {
+		const normalized = automationNormalizeString(value);
+		if (!normalized) return true;
+		return /^(button|label|pane|content|scrollpane|bar|tabview|page|item|control|client|widget|generic|group|panel)$/i.test(normalized);
+	}
+
+	function automationIsVisible(element) {
+		if (!element || typeof element.getBoundingClientRect !== "function") return false;
+		const style = getComputedStyle(element);
+		if (style.display === "none" || style.visibility === "hidden") return false;
+		const rect = element.getBoundingClientRect();
+		return rect.width > 0 && rect.height > 0;
+	}
+
+	function automationIsActionableRole(role) {
+		return /^(button|link|textbox|searchbox|combobox|checkbox|radio|switch|slider|spinbutton|tab|treeitem|menuitem|option|gridcell|cell|columnheader|rowheader)$/i.test(
+			String(role || "")
+		);
+	}
+
+	function automationShouldIncludeElement(element, role, name, stableSelector) {
+		if (automationIsActionableRole(role)) {
+			return true;
+		}
+
+		if (stableSelector.source === "data-testid" || stableSelector.source === "data-wisej-id") {
+			return true;
+		}
+
+		if (stableSelector.source === "name") {
+			return Boolean(name && name.length <= 160 && !automationIsLowValueLabel(name));
+		}
+
+		return Boolean(role && name && name.length <= 160 && !automationIsLowValueLabel(name));
+	}
+
+	function getVisibleText(element, role = null) {
+		if (!element) {
+			return null;
+		}
+
+		const valueText = /^(input|textarea|select)$/i.test(element.tagName || "")
+			? element.value
+			: null;
+		const explicitText = automationFirstMeaningfulString(
+			element.getAttribute?.("aria-label"),
+			element.getAttribute?.("title"),
+			element.getAttribute?.("placeholder"),
+			valueText
+		);
+		if (explicitText) {
+			return explicitText;
+		}
+
+		const bodyText = automationFirstMeaningfulString(element.innerText, element.textContent);
+		if (!bodyText) {
+			return null;
+		}
+
+		if (!automationIsActionableRole(role) && bodyText.length > 160) {
+			return null;
+		}
+
+		return bodyText.length > 260 ? `${bodyText.slice(0, 257)}...` : bodyText;
+	}
+
+	function getImplicitRole(element) {
+		const tag = String(element?.tagName || "").toLowerCase();
+		const type = String(element?.getAttribute?.("type") || "").toLowerCase();
+
+		if (tag === "button") return "button";
+		if (tag === "select") return "combobox";
+		if (tag === "textarea") return "textbox";
+		if (tag === "a" && element.hasAttribute("href")) return "link";
+		if (tag === "input") {
+			if (type === "button" || type === "submit" || type === "reset") return "button";
+			if (type === "checkbox") return "checkbox";
+			if (type === "radio") return "radio";
+			return "textbox";
+		}
+
+		return null;
+	}
+
+	function buildStableSelectorInfo(element, role, name) {
+		const testId = automationFirstString(element.getAttribute?.("data-testid"));
+		if (testId) {
+			return {
+				selector: `[data-testid="${escapeAttribute(testId)}"]`,
+				locator: `page.getByTestId(${jsStringLiteral(testId)})`,
+				source: "data-testid"
+			};
+		}
+
+		const dataWisejId = automationFirstString(element.getAttribute?.("data-wisej-id"));
+		if (dataWisejId) {
+			return {
+				selector: `[data-wisej-id="${escapeAttribute(dataWisejId)}"]`,
+				locator: `page.locator(${jsStringLiteral(`[data-wisej-id="${escapeAttribute(dataWisejId)}"]`)})`,
+				source: "data-wisej-id"
+			};
+		}
+
+		const htmlName = automationFirstString(element.getAttribute?.("name"));
+		if (htmlName && !automationIsLowValueLabel(htmlName)) {
+			return {
+				selector: `[name="${escapeAttribute(htmlName)}"]`,
+				locator: `page.locator(${jsStringLiteral(`[name="${escapeAttribute(htmlName)}"]`)})`,
+				source: "name"
+			};
+		}
+
+		const ariaLabel = automationFirstString(element.getAttribute?.("aria-label"));
+		if (ariaLabel) {
+			return {
+				selector: `[aria-label="${escapeAttribute(ariaLabel)}"]`,
+				locator: role
+					? `page.getByRole(${jsStringLiteral(role)}, { name: ${jsStringLiteral(ariaLabel)} })`
+					: `page.locator(${jsStringLiteral(`[aria-label="${escapeAttribute(ariaLabel)}"]`)})`,
+				source: role ? "role+aria-label" : "aria-label"
+			};
+		}
+
+		if (role && name) {
+			return {
+				selector: null,
+				locator: `page.getByRole(${jsStringLiteral(role)}, { name: ${jsStringLiteral(name)} })`,
+				source: "role+name"
+			};
+		}
+
+		const id = automationFirstString(element.getAttribute?.("id"));
+		if (id) {
+			return {
+				selector: `#${escapeCssId(id)}`,
+				locator: `page.locator(${jsStringLiteral(`#${escapeCssId(id)}`)})`,
+				source: "id"
+			};
+		}
+
+		return {
+			selector: null,
+			locator: null,
+			source: null
+		};
+	}
+
+	function getAutomationSnapshot(input = {}) {
+		const limit = Math.max(1, Math.min(Number(input.limit) || 80, 500));
+		const root = input.selector ? querySelectorElement(String(input.selector)) : document;
+		if (!root) {
+			return {
+				url: String(location.href || ""),
+				title: String(document.title || ""),
+				count: 0,
+				items: []
+			};
+		}
+
+		const selector = [
+			"[role]",
+			"[aria-label]",
+			"[data-testid]",
+			"[data-wisej-id]",
+			"[name]",
+			"button",
+			"a[href]",
+			"input:not([type='hidden'])",
+			"textarea",
+			"select",
+			"[contenteditable='true']"
+		].join(",");
+		const elements = Array.from(root.querySelectorAll(selector));
+		const seen = new Set();
+		const items = [];
+
+		for (const element of elements) {
+			if (items.length >= limit) {
+				break;
+			}
+
+			if (!automationIsVisible(element)) {
+				continue;
+			}
+
+			const role = automationFirstString(element.getAttribute("role"), getImplicitRole(element));
+			const name = getVisibleText(element, role);
+			const stableSelector = buildStableSelectorInfo(element, role, name);
+			if (!automationShouldIncludeElement(element, role, name, stableSelector)) {
+				continue;
+			}
+
+			const key = stableSelector.locator || stableSelector.selector || `${role || ""}|${name || ""}|${element.getAttribute("id") || ""}|${element.getAttribute("name") || ""}|${element.getAttribute("data-wisej-id") || ""}`;
+			if (seen.has(key)) {
+				continue;
+			}
+
+			seen.add(key);
+			const rect = element.getBoundingClientRect();
+			const widget = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement?.(element) || null;
+			items.push({
+				role,
+				name,
+				selector: stableSelector.selector,
+				locator: stableSelector.locator,
+				selectorSource: stableSelector.source,
+				tagName: String(element.tagName || "").toLowerCase(),
+				type: element.getAttribute("type") || null,
+				widgetId: callWidgetMethod(widget, "getId"),
+				widgetName: callWidgetMethod(widget, "getName") || widget?.name || null,
+				className: getClassName(widget) || null,
+				rect: {
+					x: Math.round(rect.x),
+					y: Math.round(rect.y),
+					width: Math.round(rect.width),
+					height: Math.round(rect.height)
+				}
+			});
+		}
+
+		return {
+			url: String(location.href || ""),
+			title: String(document.title || ""),
+			count: items.length,
+			items
+		};
+	}
+
 	const tools = {
+		automationSnapshot(input = {}) {
+			return getAutomationSnapshot(input);
+		},
+
 		comboboxOpen(input = {}) {
 			const combo = resolveComboBox(input);
 			combo.open();
@@ -3022,7 +3303,8 @@
 			const afterSet = getDateTimePickerValueInfo(picker);
 			const fallbackText = displayOverride ?? (parsed.source == null ? "" : String(parsed.source));
 			const needsEditorCommit = displayOverride != null
-				|| !dateTimePickerValueMatchesParsed(afterSet, parsed);
+				|| !dateTimePickerValueMatchesParsed(afterSet, parsed)
+				|| !dateTimePickerDisplayMatchesParsed(afterSet, parsed);
 			let editorUpdated = false;
 			let inputUpdated = false;
 

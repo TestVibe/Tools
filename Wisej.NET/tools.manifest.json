@@ -1,12 +1,15 @@
 {
   "name": "Wisej.NET",
   "description": "Wisej.NET provider tools for UI automation and interaction helpers.",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "entry": "./tools.js",
   "pageBound": true,
   "variables": [],
   "secrets": [],
   "tools": [
+    {
+      "name": "automationSnapshot"
+    },
     {
       "name": "comboboxOpen"
     },
