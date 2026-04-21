@@ -99,6 +99,17 @@ async function dateTimePickerGetValue(input = {}) {
 	return invokeWisejHelper("dateTimePickerGetValue", input);
 }
 
+//#Example=Get Wisej component value by id: { id: "textEditTotalValue" }.
+//#Example=Get Wisej component value by label: { ariaLabel: "Total" }.
+//#Summary=Get Component Value
+//#Description=Gets the raw value and visible display text from any Wisej component by id, ariaLabel, or selector.
+//#ReturnsType=object
+//#ReturnsValue={"id":"textEditTotalValue","rawValue":"5344.50","displayText":"£5,344.50","value":"£5,344.50"}
+//#Params=id,selector,ariaLabel
+async function componentGetValue(input = {}) {
+	return invokeWisejHelper("componentGetValue", input);
+}
+
 //#Example=List tree items from a virtualized or collapsed tree: { id: "trlstPayroll", limit: 100 }.
 //#Summary=Get Tree Items
 //#Description=Reads Wisej TreeView nodes from the backing model, including collapsed branches that may not be rendered in the DOM.
@@ -359,6 +370,7 @@ module.exports = {
 	comboboxGetItems,
 	dateTimePickerSetValue,
 	dateTimePickerGetValue,
+	componentGetValue,
 	treeGetItems,
 	treeExpandItem,
 	treeSelectItem,

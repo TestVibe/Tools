@@ -479,6 +479,19 @@
 			}
 		}
 
+		function shouldDelegateButtonRoleToChild(dom) {
+			if (!dom || dom.nodeType !== 1) return false;
+
+			const className = typeof dom.className === "string" ? dom.className : "";
+			if (!/\bqx-ribbonbar-item\b/i.test(className)) return false;
+			if (/\bqx-ribbonbar-item-button\b/i.test(className)) return false;
+			if (dom.getAttribute("name") === "button") return false;
+
+			return !!dom.querySelector?.(
+				'[name="button"],[class*="qx-ribbonbar-item-button"],[role="button"]'
+			);
+		}
+
 		function applyRoleAndLabel(widget, dom, className) {
 			const expected = expectedRoleFor(className, widget, dom);
 			if (!expected) return false;
@@ -486,6 +499,14 @@
 			const expectedRole = expected;
 			const current = dom.getAttribute("role");
 			const roleWasMissing = !current;
+
+			if (expectedRole === "button" && shouldDelegateButtonRoleToChild(dom)) {
+				if (current === "button") {
+					dom.removeAttribute("role");
+					return true;
+				}
+				return false;
+			}
 
 			// For editable controls, ensure we target the actual editable element (input/textarea/contenteditable)
 			// to avoid getByRole(...).fill() resolving to a non-editable wrapper div.
@@ -1714,6 +1735,35 @@
 			displayText,
 			value: hasLookupText(rawValue) ? rawValue : displayText,
 			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
+		};
+	}
+
+	function resolveAnyComponent(input = {}) {
+		const core = getWisejCore();
+		const target = resolveComponentId(input);
+		const component = resolveComponent(core, target);
+		if (!component) {
+			throw new Error(`Unable to resolve Wisej component: ${target}`);
+		}
+		return component;
+	}
+
+	function getComponentValueInfo(component) {
+		const dom = getWidgetDomElement(component);
+		const rawValue = callWidgetMethod(component, "getValue");
+		const displayText = getLookupTextValue(callWidgetMethod(component, "getText"))
+			|| getLookupTextValue(callWidgetMethod(component, "getLabel"))
+			|| getLookupTextValue(callWidgetMethod(component, "getCaption"))
+			|| getLookupTextValue(callWidgetMethod(component, "getDisplayText"))
+			|| getDomDisplayedText(dom);
+		const rawText = getLookupTextValue(rawValue);
+
+		return {
+			id: callWidgetMethod(component, "getId") || null,
+			className: getClassName(component),
+			rawValue,
+			displayText,
+			value: displayText || rawText || rawValue
 		};
 	}
 
@@ -3528,6 +3578,10 @@
 		dateTimePickerGetValue(input = {}) {
 			const picker = resolveDateTimePicker(input);
 			return getDateTimePickerValueInfo(picker);
+		},
+
+		componentGetValue(input = {}) {
+			return getComponentValueInfo(resolveAnyComponent(input));
 		},
 
 		treeGetItems(input = {}) {
