@@ -2501,9 +2501,12 @@
 				continue;
 			}
 
-			const score = String(rawText).trim().length;
-			if (!best || score < best.score) {
-				best = { node, score };
+			const textScore = String(rawText).trim().length;
+			const area = rect.width * rect.height;
+			if (!best
+				|| textScore < best.textScore
+				|| (textScore === best.textScore && area < best.area)) {
+				best = { node, textScore, area };
 			}
 		}
 
