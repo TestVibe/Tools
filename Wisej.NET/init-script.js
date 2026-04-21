@@ -2933,8 +2933,11 @@
 
 		let fallback = component || null;
 
-		// If direct lookup fails, treat target as a DOM-facing label/name/test id and resolve via DOM.
-		for (const selector of buildTargetSelectors(target)) {
+		// If direct lookup fails, treat target as either a real CSS selector or a DOM-facing label/name/test id.
+		const selectors = isSelectorLike(target)
+			? [String(target), ...buildTargetSelectors(target)]
+			: buildTargetSelectors(target);
+		for (const selector of selectors) {
 			const elements = querySelectorElements(selector);
 			if (!elements.length) {
 				continue;
@@ -2977,7 +2980,7 @@
 		}
 
 		if (input.selector) {
-			return parseIdOrSelector(String(input.selector));
+			return String(input.selector).trim();
 		}
 
 		throw new Error("Missing component target. Provide id, ariaLabel, or selector.");
@@ -2993,37 +2996,15 @@
 			return trimmed;
 		}
 
-		const fromSelector = selectorToComponentId(trimmed);
-		if (fromSelector) {
-			return fromSelector;
+		if (isSelectorLike(trimmed) && querySelectorElement(trimmed)) {
+			return trimmed;
 		}
 
-		throw new Error(`Unable to resolve component id from selector: ${trimmed}`);
+		throw new Error(`Unable to resolve component target: ${trimmed}`);
 	}
 
-	function selectorToComponentId(selector) {
-		const el = querySelectorElement(selector);
-		if (!el) {
-			return null;
-		}
-
-		let node = el;
-		while (node) {
-			const widget = globalThis.qx?.ui?.core?.Widget?.getWidgetByElement?.(node);
-			const widgetKeys = getWidgetLookupKeys(widget);
-			if (widgetKeys.length > 0) {
-				return widgetKeys[0];
-			}
-
-			const elementKeys = getElementLookupKeys(node);
-			if (elementKeys.length > 0) {
-				return elementKeys[0];
-			}
-
-			node = node.parentElement;
-		}
-
-		return null;
+	function isSelectorLike(value) {
+		return /[\s>+~#[\].:=*"'(),]/.test(String(value || ""));
 	}
 
 	function querySelectorElement(selector) {
@@ -3032,7 +3013,12 @@
 			return null;
 		}
 
-		return doc.querySelector(selector);
+		try {
+			return doc.querySelector(selector);
+		}
+		catch {
+			return null;
+		}
 	}
 
 	function querySelectorElements(selector) {
@@ -3042,7 +3028,12 @@
 			return single ? [single] : [];
 		}
 
-		return Array.from(doc.querySelectorAll(selector));
+		try {
+			return Array.from(doc.querySelectorAll(selector));
+		}
+		catch {
+			return [];
+		}
 	}
 
 	function buildTargetSelectors(target) {
@@ -3131,6 +3122,11 @@
 		return /^(button|label|pane|content|scrollpane|bar|tabview|page|item|control|client|widget|generic|group|panel)$/i.test(normalized);
 	}
 
+	function automationIsGeneratedId(value) {
+		const normalized = automationNormalizeString(value);
+		return Boolean(normalized && /^(?:id_|qx-uid-)\d+$/i.test(normalized));
+	}
+
 	function automationIsVisible(element) {
 		if (!element || typeof element.getBoundingClientRect !== "function") return false;
 		const style = getComputedStyle(element);
@@ -3211,7 +3207,7 @@
 
 	function buildStableSelectorInfo(element, role, name) {
 		const testId = automationFirstString(element.getAttribute?.("data-testid"));
-		if (testId) {
+		if (testId && !automationIsGeneratedId(testId)) {
 			return {
 				selector: `[data-testid="${escapeAttribute(testId)}"]`,
 				locator: `page.getByTestId(${jsStringLiteral(testId)})`,
@@ -3220,7 +3216,7 @@
 		}
 
 		const dataWisejId = automationFirstString(element.getAttribute?.("data-wisej-id"));
-		if (dataWisejId) {
+		if (dataWisejId && !automationIsGeneratedId(dataWisejId)) {
 			return {
 				selector: `[data-wisej-id="${escapeAttribute(dataWisejId)}"]`,
 				locator: `page.locator(${jsStringLiteral(`[data-wisej-id="${escapeAttribute(dataWisejId)}"]`)})`,
@@ -3229,7 +3225,7 @@
 		}
 
 		const htmlName = automationFirstString(element.getAttribute?.("name"));
-		if (htmlName && !automationIsLowValueLabel(htmlName)) {
+		if (htmlName && !automationIsGeneratedId(htmlName) && !automationIsLowValueLabel(htmlName)) {
 			return {
 				selector: `[name="${escapeAttribute(htmlName)}"]`,
 				locator: `page.locator(${jsStringLiteral(`[name="${escapeAttribute(htmlName)}"]`)})`,
@@ -3257,7 +3253,7 @@
 		}
 
 		const id = automationFirstString(element.getAttribute?.("id"));
-		if (id) {
+		if (id && !automationIsGeneratedId(id)) {
 			return {
 				selector: `#${escapeCssId(id)}`,
 				locator: `page.locator(${jsStringLiteral(`#${escapeCssId(id)}`)})`,
