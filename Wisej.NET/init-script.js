@@ -2562,6 +2562,26 @@
 		return true;
 	}
 
+	function getElementClickRect(element) {
+		if (!element || typeof element.getBoundingClientRect !== "function") {
+			return null;
+		}
+
+		const rect = element.getBoundingClientRect();
+		if (!rect || rect.width <= 0 || rect.height <= 0) {
+			return null;
+		}
+
+		return {
+			x: rect.left,
+			y: rect.top,
+			width: rect.width,
+			height: rect.height,
+			centerX: rect.left + rect.width / 2,
+			centerY: rect.top + rect.height / 2
+		};
+	}
+
 	function wait(timeoutMs) {
 		return new Promise((resolve) => globalThis.setTimeout(resolve, timeoutMs));
 	}
@@ -2814,6 +2834,93 @@
 			text: match.text,
 			...getComboValueInfo(combo)
 		};
+	}
+
+	async function findComboItemClickTarget(combo, lookup, options) {
+		await ensureComboOpened(combo, options.timeoutMs);
+
+		const list = resolveComboDropDownList(combo);
+		if (list && typeof list.getModel === "function" && isListSelectionControl(list)) {
+			const match = findListIndexByLookupText(list, lookup.text, options.exact);
+			if (match) {
+				if (typeof list.scrollIntoView === "function") {
+					list.scrollIntoView(match.index, "top");
+				}
+				else if (typeof list.setTopIndex === "function") {
+					list.setTopIndex(match.index);
+				}
+
+				await flushUi(3);
+				await wait(50);
+
+				const element = findClickableTextElement(getWidgetDomElement(list), match.text, true)
+					|| findClickableTextElement(getWidgetDomElement(list), lookup.text, options.exact);
+				const rect = getElementClickRect(element);
+				if (rect) {
+					return {
+						className: getClassName(combo),
+						strategy: "dropdown-list-click-target",
+						source: "list",
+						index: match.index,
+						text: match.text,
+						rect
+					};
+				}
+			}
+		}
+
+		const grid = resolveComboDropDownGrid(combo);
+		if (!grid) {
+			return null;
+		}
+
+		const columns = Array.isArray(options.columns)
+			? options.columns.filter((value) => Number.isInteger(value) && value >= 0)
+			: null;
+		let match = findDataGridCellByText(grid, lookup.text, options.exact, columns);
+		if (!match && columns && columns.length > 0) {
+			match = findDataGridCellByText(grid, lookup.text, options.exact, null);
+		}
+		if (!match && options.exact) {
+			match = findDataGridCellByText(grid, lookup.text, false, columns);
+			if (!match && columns && columns.length > 0) {
+				match = findDataGridCellByText(grid, lookup.text, false, null);
+			}
+		}
+		if (!match) {
+			return null;
+		}
+
+		if (typeof grid.scrollCellVisible === "function") {
+			grid.scrollCellVisible(match.col, match.row, null, null);
+		}
+		if (typeof grid.setFocusedCell === "function") {
+			grid.setFocusedCell(match.col, match.row, true, true, false);
+		}
+
+		await flushUi(3);
+		await wait(50);
+
+		const roots = getComboSearchRoots(grid, resolveComboDropDownList(combo), combo);
+		for (const root of roots) {
+			const element = findClickableTextElement(root, match.text, true)
+				|| findClickableTextElement(root, lookup.text, options.exact)
+				|| findClickableTextElement(root, lookup.text, false);
+			const rect = getElementClickRect(element);
+			if (rect) {
+				return {
+					className: getClassName(combo),
+					strategy: "dropdown-grid-click-target",
+					source: "grid",
+					row: match.row,
+					col: match.col,
+					text: match.text,
+					rect
+				};
+			}
+		}
+
+		return null;
 	}
 
 	function resolveComponent(core, target, predicate) {
@@ -3427,6 +3534,31 @@
 			}
 
 			throw new Error(`No combobox item matched text: ${lookup.text}`);
+		},
+
+		async comboboxFindItemTarget(input = {}) {
+			const lookup = input && typeof input === "object" ? input : {};
+			if (typeof lookup.text !== "string" || lookup.text.trim().length === 0) {
+				throw new Error("Parameter 'text' must be a non-empty string.");
+			}
+
+			const combo = resolveComboBox(lookup);
+			const options = {
+				exact: lookup.exact !== false,
+				timeoutMs: Number.isFinite(lookup.timeoutMs) ? lookup.timeoutMs : 3000,
+				columns: Array.isArray(lookup.columns) ? lookup.columns : (Number.isInteger(lookup.column) ? [lookup.column] : null)
+			};
+
+			const target = await findComboItemClickTarget(combo, lookup, options);
+			if (!target) {
+				throw new Error(`No visible combobox item target matched text: ${lookup.text}`);
+			}
+
+			return {
+				id: combo.getId(),
+				...target,
+				...getComboValueInfo(combo)
+			};
 		},
 
 		listScrollToIndex(input = {}) {

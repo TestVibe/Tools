@@ -177,7 +177,56 @@ async function comboboxGetSelection(input = {}) {
 //#ReturnsValue={"id":"luRotaGroupFilter","strategy":"dropdown-grid-dom-click","row":13,"col":2,"text":"Cyclical testing 9","value":"Cyclical testing 9"}
 //#Params=id,selector,ariaLabel,text,exact,column,columns,timeoutMs
 async function comboboxSelectItem(input = {}) {
-	return invokeWisejHelper("comboboxSelectItem", input);
+	const { page, input: payload } = resolvePageBoundInput(input);
+	try {
+		return await invokeWisejHelper("comboboxSelectItem", input);
+	}
+	catch (error) {
+		const target = await page.evaluate(
+			(payload) => {
+				const helpers = globalThis.__wisejNetTools;
+				if (!helpers || typeof helpers.comboboxFindItemTarget !== "function") {
+					throw new Error("Browser helper not found: comboboxFindItemTarget. Ensure init-script.js is loaded before tool calls.");
+				}
+				return helpers.comboboxFindItemTarget(payload);
+			},
+			payload
+		);
+
+		if (!target?.rect) {
+			throw error;
+		}
+
+		await page.mouse.click(target.rect.centerX, target.rect.centerY);
+		await page.waitForTimeout(150);
+
+		const valueInfo = await page.evaluate(
+			(payload) => {
+				const helpers = globalThis.__wisejNetTools;
+				if (!helpers || typeof helpers.comboboxGetValue !== "function") {
+					throw new Error("Browser helper not found: comboboxGetValue. Ensure init-script.js is loaded before tool calls.");
+				}
+				return helpers.comboboxGetValue(payload);
+			},
+			payload
+		);
+
+		return {
+			...target,
+			strategy: `${target.strategy}-trusted-click`,
+			...valueInfo
+		};
+	}
+}
+
+//#Example=Find ComboBox item click target: { id: "luRotaGroupFilter", text: "Cyclical testing 9" }.
+//#Summary=Find ComboBox Item Click Target
+//#Description=Finds the visible row or list item that Playwright should click for a Wisej ComboBox item.
+//#ReturnsType=object
+//#ReturnsValue={"id":"luRotaGroupFilter","strategy":"dropdown-grid-click-target","text":"Cyclical testing 9","rect":{"centerX":500,"centerY":240}}
+//#Params=id,selector,ariaLabel,text,exact,column,columns,timeoutMs
+async function comboboxFindItemTarget(input = {}) {
+	return invokeWisejHelper("comboboxFindItemTarget", input);
 }
 
 //#Example=Scroll list to index: { id: "listBox1", index: 120 }.
@@ -318,6 +367,7 @@ module.exports = {
 	comboboxSetSelection,
 	comboboxGetSelection,
 	comboboxSelectItem,
+	comboboxFindItemTarget,
 	listScrollToIndex,
 	listSelectItem,
 	listGetViewportInfo,

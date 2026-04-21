@@ -1,7 +1,7 @@
 {
   "name": "Wisej.NET",
   "description": "Wisej.NET provider tools for UI automation and interaction helpers.",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "entry": "./tools.js",
   "pageBound": true,
   "variables": [],
@@ -54,6 +54,9 @@
     },
     {
       "name": "comboboxSelectItem"
+    },
+    {
+      "name": "comboboxFindItemTarget"
     },
     {
       "name": "listScrollToIndex"
