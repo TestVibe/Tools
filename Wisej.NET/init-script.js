@@ -84,9 +84,10 @@
 		function isLowValueLabel(label) {
 			const normalized = normalizeString(label);
 			if (!normalized) return false;
+			if (/^\*+$/.test(normalized)) return true;
 			return (
 				isProbablyInternalName(normalized) ||
-				/^(button|label|pane|content|scrollpane|bar|tabview|page|item|control|client|widget|generic|group|panel)$/i.test(
+				/^(button|label|pane|content|scrollpane|bar|tabview|page|item|control|client|widget|generic|group|panel|textfield|labelfield|upbutton|downbutton|icon|clear)$/i.test(
 					normalized
 				)
 			);
@@ -310,6 +311,8 @@
 				return "tab";
 			if (/wisej\.web\.(Button|MenuButton|SplitButton|ToolButton)$/i.test(className))
 				return "button";
+			if (/wisej\.web\.toolbar\.(Button|MenuButton|SplitButton|ToolButton)$/i.test(className))
+				return "button";
 			if (
 				/qx\.ui\.form\.Button$/i.test(className) ||
 				/\.(?:ItemButton|MenuButton|SplitButton|ToolButton)$/i.test(className) ||
@@ -319,7 +322,7 @@
 				return "button";
 			if (/wisej\.web\.CheckBox$/i.test(className)) return "checkbox";
 			if (/wisej\.web\.RadioButton$/i.test(className)) return "radio";
-			if (/wisej\.web\.(DateTimePicker|TextBox|MaskedTextBox|TextBoxBase)$/i.test(className))
+			if (/wisej\.web\.(DateTimePicker|TextBox|MaskedTextBox|TextBoxBase|TimeUpDown|NumericUpDown|DomainUpDown|UpDownBase)$/i.test(className))
 				return "textbox";
 			if (
 				/wisej\.web\.(?:\w+ComboBox|SelectBox|DropDownList|LookupBox|DataLookup)$/i.test(className) ||
@@ -458,6 +461,11 @@
 			);
 		}
 
+		function shouldReplaceEditableStableAttribute(value) {
+			const normalized = normalizeString(value);
+			return !normalized || isLowValueLabel(normalized) || /^(?:id_|qx-uid-)\d+$/i.test(normalized);
+		}
+
 		function copyStableEditableAttributes(widget, dom, editableTarget) {
 			if (!editableTarget || editableTarget === dom) return;
 
@@ -465,7 +473,7 @@
 			if (!stableKey) return;
 
 			for (const attributeName of ["name", "data-testid", "data-wisej-id"]) {
-				if (!editableTarget.hasAttribute(attributeName)) {
+				if (shouldReplaceEditableStableAttribute(editableTarget.getAttribute(attributeName))) {
 					editableTarget.setAttribute(attributeName, stableKey);
 				}
 			}
@@ -2074,7 +2082,8 @@
 		let clickedText = null;
 		const root = getWidgetDomElement(grid);
 		const lookupText = match.text || input.text;
-		const element = findClickableTextElement(root, lookupText, input.exact !== false)
+		const element = findFocusedDataGridCellElement(root, lookupText)
+			|| findClickableTextElement(root, lookupText, input.exact !== false)
 			|| findClickableTextElement(root, lookupText, false);
 		if (element) {
 			clickedText = getNodeTextValue(element) || lookupText;
@@ -2511,6 +2520,45 @@
 		}
 
 		return best?.node || null;
+	}
+
+	function findFocusedDataGridCellElement(root, text) {
+		if (!root || typeof root.querySelectorAll !== "function") {
+			return null;
+		}
+
+		const selectors = [
+			"[class*='table-cell-selected']",
+			"[class*='table-cell-focused']",
+			"[class*='cell-selected']",
+			"[class*='cell-focused']",
+			"[class*='row-focused'] [class*='cell']",
+			"[class*='row-selected'] [class*='cell']"
+		];
+		const seen = new Set();
+		const candidates = [];
+		for (const selector of selectors) {
+			for (const element of root.querySelectorAll(selector)) {
+				if (seen.has(element)) {
+					continue;
+				}
+
+				seen.add(element);
+				const rect = typeof element.getBoundingClientRect === "function"
+					? element.getBoundingClientRect()
+					: null;
+				if (!rect || rect.width <= 0 || rect.height <= 0) {
+					continue;
+				}
+
+				candidates.push(element);
+			}
+		}
+
+		return candidates.find((element) => matchesLookupText(getNodeTextValue(element), text, true))
+			|| candidates.find((element) => matchesLookupText(getNodeTextValue(element), text, false))
+			|| candidates[0]
+			|| null;
 	}
 
 	function dispatchClick(element) {
