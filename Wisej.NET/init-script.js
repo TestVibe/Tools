@@ -1222,6 +1222,16 @@
 		return looksLikeDateTimePicker || hasDateTimePickerApi;
 	}
 
+	function componentLooksLikeMonthCalendar(component) {
+		const className = getClassName(component);
+		const looksLikeMonthCalendar = /(?:^|\.)MonthCalendar$/i.test(className);
+		const hasMonthCalendarApi =
+			typeof component?.getSelectionRange === "function" &&
+			typeof component?.setSelectionRange === "function";
+
+		return looksLikeMonthCalendar || hasMonthCalendarApi;
+	}
+
 	function resolveComboBox(input) {
 		const core = getWisejCore();
 		const target = resolveComponentId(input);
@@ -1252,6 +1262,73 @@
 		}
 
 		return picker;
+	}
+
+	function isGenericDateTarget(target) {
+		return /^(date|calendar|month calendar|monthcalendar|day|month)$/i.test(String(target || "").trim());
+	}
+
+	function findVisibleMonthCalendars(core) {
+		const calendars = [];
+		const seen = new Set();
+		const elements = orderElementsByVisibility(querySelectorElements("[name], [data-wisej-id], [data-testid], [aria-label], [role]"));
+
+		for (const element of elements) {
+			if (!isElementVisible(element)) {
+				continue;
+			}
+
+			const component = resolveComponentFromElement(core, element);
+			if (!component || seen.has(component) || !componentLooksLikeMonthCalendar(component)) {
+				continue;
+			}
+
+			const dom = getWidgetDomElement(component);
+			if (dom && !isElementVisible(dom)) {
+				continue;
+			}
+
+			seen.add(component);
+			calendars.push(component);
+		}
+
+		return calendars;
+	}
+
+	function resolveMonthCalendar(input = {}, options = {}) {
+		const core = getWisejCore();
+		let target = null;
+		let targetError = null;
+
+		if (hasExplicitComponentTarget(input)) {
+			try {
+				target = resolveComponentId(input);
+				const calendar = resolveComponent(core, target, componentLooksLikeMonthCalendar);
+				if (calendar) {
+					return calendar;
+				}
+			} catch (error) {
+				targetError = error;
+			}
+		}
+
+		if (options.allowVisibleFallback !== false) {
+			const calendars = findVisibleMonthCalendars(core);
+			if (calendars.length === 1 || !hasExplicitComponentTarget(input) || isGenericDateTarget(target)) {
+				const calendar = calendars[0] || null;
+				if (calendar) {
+					return calendar;
+				}
+			}
+		}
+
+		if (targetError) {
+			throw targetError;
+		}
+
+		throw new Error(target
+			? `Component ${target} is not a Wisej MonthCalendar.`
+			: "No visible Wisej MonthCalendar found.");
 	}
 
 	function parseDateTimePickerValue(input) {
@@ -1406,6 +1483,115 @@
 		} catch {
 			return false;
 		}
+	}
+
+	function dateOnly(date) {
+		return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	}
+
+	function dateToIsoString(date) {
+		return date instanceof Date && !Number.isNaN(date.getTime())
+			? date.toISOString()
+			: null;
+	}
+
+	function countCalendarDays(start, end) {
+		if (!(start instanceof Date) || !(end instanceof Date)) {
+			return 0;
+		}
+
+		const current = dateOnly(start);
+		const stop = dateOnly(end);
+		let count = 0;
+		while (current <= stop && count < 10000) {
+			count++;
+			current.setDate(current.getDate() + 1);
+		}
+
+		return count;
+	}
+
+	function parseMonthCalendarRange(input = {}) {
+		const startSource =
+			input.start ??
+			input.from ??
+			input.begin ??
+			input.startDate ??
+			input.value ??
+			input.date ??
+			input.text ??
+			input.displayText;
+		const endSource =
+			input.end ??
+			input.to ??
+			input.through ??
+			input.until ??
+			input.endDate ??
+			input.value ??
+			input.date ??
+			input.text ??
+			input.displayText;
+		const startParsed = parseDateTimePickerValue({ value: startSource });
+		const endParsed = parseDateTimePickerValue({ value: endSource });
+
+		if (!(startParsed.date instanceof Date) || Number.isNaN(startParsed.date.getTime())) {
+			throw new Error("Unable to parse MonthCalendar start date.");
+		}
+
+		if (!(endParsed.date instanceof Date) || Number.isNaN(endParsed.date.getTime())) {
+			throw new Error("Unable to parse MonthCalendar end date.");
+		}
+
+		let start = dateOnly(startParsed.date);
+		let end = dateOnly(endParsed.date);
+		if (end < start) {
+			const temp = start;
+			start = end;
+			end = temp;
+		}
+
+		return { start, end, startSource, endSource };
+	}
+
+	function getMonthCalendarRangeInfo(calendar) {
+		const range = callWidgetMethod(calendar, "getSelectionRange");
+		const start = range?.start instanceof Date ? range.start : null;
+		const end = range?.end instanceof Date ? range.end : null;
+
+		return {
+			id: callWidgetMethod(calendar, "getId") || null,
+			name: callWidgetMethod(calendar, "getName") || calendar?.name || null,
+			className: getClassName(calendar),
+			selectionStart: dateToIsoString(start),
+			selectionEnd: dateToIsoString(end),
+			selectedDays: start && end ? countCalendarDays(start, end) : 0,
+			displayText: getDomDisplayedText(getWidgetDomElement(calendar)),
+			value: start && end
+				? { start: dateToIsoString(start), end: dateToIsoString(end) }
+				: null
+		};
+	}
+
+	async function setMonthCalendarRange(calendar, input = {}) {
+		const range = parseMonthCalendarRange(input);
+		const before = getMonthCalendarRangeInfo(calendar);
+
+		calendar.setSelectionRange({ start: range.start, end: range.end });
+		let committed = false;
+		if (input.commit !== false && typeof calendar.fireEvent === "function") {
+			calendar.fireEvent("dateSelected");
+			committed = true;
+		}
+
+		await flushUi(2);
+
+		return {
+			...getMonthCalendarRangeInfo(calendar),
+			previousStart: before.selectionStart,
+			previousEnd: before.selectionEnd,
+			setByCalendar: true,
+			committed
+		};
 	}
 
 	function getClassName(component) {
@@ -4085,7 +4271,20 @@
 		},
 
 		dateTimePickerSetValue: async function(input = {}) {
-			const picker = resolveDateTimePicker(input);
+			let picker;
+			try {
+				picker = resolveDateTimePicker(input);
+			} catch (error) {
+				try {
+					const calendar = resolveMonthCalendar(input, { allowVisibleFallback: true });
+					return {
+						...(await setMonthCalendarRange(calendar, input)),
+						fallbackFrom: "dateTimePickerSetValue"
+					};
+				} catch {
+					throw error;
+				}
+			}
 			const parsed = parseDateTimePickerValue(input);
 			const before = getDateTimePickerValueInfo(picker);
 			let setByPicker = false;
@@ -4129,6 +4328,16 @@
 		dateTimePickerGetValue(input = {}) {
 			const picker = resolveDateTimePicker(input);
 			return getDateTimePickerValueInfo(picker);
+		},
+
+		monthCalendarSetRange: async function(input = {}) {
+			const calendar = resolveMonthCalendar(input, { allowVisibleFallback: true });
+			return setMonthCalendarRange(calendar, input);
+		},
+
+		monthCalendarGetRange(input = {}) {
+			const calendar = resolveMonthCalendar(input, { allowVisibleFallback: true });
+			return getMonthCalendarRangeInfo(calendar);
 		},
 
 		componentGetValue(input = {}) {
