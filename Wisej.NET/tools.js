@@ -110,6 +110,17 @@ async function componentGetValue(input = {}) {
 	return invokeWisejHelper("componentGetValue", input);
 }
 
+//#Example=Click an icon-only toolbar button by name: { id: "barButton1" }.
+//#Example=Click a control by selector: { selector: "[name=\"buttonSave\"]" }.
+//#Summary=Click Wisej Component
+//#Description=Clicks a Wisej component by id, selector, or ariaLabel, using the visible DOM target. Useful for icon-only toolbar and ribbon actions.
+//#ReturnsType=object
+//#ReturnsValue={"id":"barButton1","className":"wisej.web.toolbar.Button","clicked":true}
+//#Params=id,selector,ariaLabel
+async function componentClick(input = {}) {
+	return invokeWisejHelper("componentClick", input);
+}
+
 //#Example=List tree items from a virtualized or collapsed tree: { id: "trlstPayroll", limit: 100 }.
 //#Summary=Get Tree Items
 //#Description=Reads Wisej TreeView nodes from the backing model, including collapsed branches that may not be rendered in the DOM.
@@ -371,6 +382,7 @@ module.exports = {
 	dateTimePickerSetValue,
 	dateTimePickerGetValue,
 	componentGetValue,
+	componentClick,
 	treeGetItems,
 	treeExpandItem,
 	treeSelectItem,

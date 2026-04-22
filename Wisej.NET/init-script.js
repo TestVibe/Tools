@@ -69,7 +69,15 @@
 
 		function normalizeString(value) {
 			if (typeof value !== "string") return null;
-			const trimmed = value.replace(/\s+/g, " ").trim();
+			let text = value.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ");
+			try {
+				const textarea = document.createElement("textarea");
+				textarea.innerHTML = text;
+				text = textarea.value;
+			} catch {
+				// ignore: best-effort HTML entity decoding.
+			}
+			const trimmed = text.replace(/\s+/g, " ").trim();
 			return trimmed || null;
 		}
 
@@ -102,6 +110,36 @@
 				if (!isLowValueLabel(normalized)) return normalized;
 			}
 			return fallback;
+		}
+
+		function withActionAliases(label, widget, dom) {
+			const normalized = normalizeString(label);
+			if (!normalized) return null;
+
+			const hint = firstString(
+				normalized,
+				tryCall(widget, "getToolTipText"),
+				tryCall(widget, "getName"),
+				dom?.getAttribute?.("name"),
+				typeof dom?.className === "string" ? dom.className : null
+			);
+			const lower = String(hint || normalized).toLowerCase();
+			const labels = [normalized];
+
+			const pushAlias = (alias) => {
+				if (!alias) return;
+				const aliasLower = alias.toLowerCase();
+				if (!labels.some((item) => item.toLowerCase() === aliasLower)) {
+					labels.push(alias);
+				}
+			};
+
+			if (/\b(refresh|reload)\b/.test(lower)) {
+				pushAlias("Reload data");
+				pushAlias("Refresh");
+			}
+
+			return labels.join(" ");
 		}
 
 		function tryCall(widget, method) {
@@ -374,7 +412,7 @@
 			for (const btn of buttonCandidates) {
 				if (setRoleIfMissing(btn, "button")) buttonsPatched++;
 				if (!btn.hasAttribute("aria-label") && !btn.hasAttribute("aria-labelledby")) {
-					const label = firstString(btn.innerText, btn.textContent);
+					const label = withActionAliases(firstString(btn.innerText, btn.textContent), null, btn);
 					if (label) {
 						btn.setAttribute("aria-label", label);
 						touched++;
@@ -492,6 +530,115 @@
 			);
 		}
 
+		function getButtonRoleDelegate(dom) {
+			if (!dom || dom.nodeType !== 1) return null;
+
+			const className = typeof dom.className === "string" ? dom.className : "";
+			if (!/\bqx-toolbar-button\b/i.test(className)) {
+				return null;
+			}
+
+			const candidates = Array.from(dom.children || []).filter((child) => {
+				if (!child || child.nodeType !== 1 || !isVisible(child)) return false;
+				const rect = child.getBoundingClientRect();
+				const style = getComputedStyle(child);
+				return style.pointerEvents !== "none" && rect.width > 0 && rect.height > 0;
+			});
+
+			return candidates.find((child) =>
+				/^(button|icon|label)$/i.test(child.getAttribute("name") || "")
+			) || candidates[0] || null;
+		}
+
+		function applyDelegatedButtonRole(widget, dom, label) {
+			const delegate = getButtonRoleDelegate(dom);
+			if (!delegate || delegate === dom) return false;
+
+			delegate.removeAttribute("role");
+			delegate.removeAttribute("aria-label");
+			delegate.setAttribute("aria-hidden", "true");
+			delegate.style.pointerEvents = "none";
+
+			dom.setAttribute("role", "button");
+			const aliasedLabel = withActionAliases(label || inferLabel(widget, dom), widget, dom);
+			if (aliasedLabel) {
+				dom.setAttribute("aria-label", aliasedLabel);
+			}
+
+			const stableKey = getStableControlKey(widget, dom);
+			if (stableKey) {
+				for (const attributeName of ["data-testid", "data-wisej-id"]) {
+					if (shouldReplaceEditableStableAttribute(dom.getAttribute(attributeName))) {
+						dom.setAttribute(attributeName, stableKey);
+					}
+				}
+			}
+
+			return true;
+		}
+
+		function suppressNestedButtonRole(dom) {
+			if (!dom || dom.nodeType !== 1) return false;
+
+			const parentButton = dom.parentElement?.closest?.('[role="button"]');
+			if (!parentButton || parentButton === dom) return false;
+
+			const name = dom.getAttribute("name") || "";
+			const className = typeof dom.className === "string" ? dom.className : "";
+			if (!/^(button|icon|label)$/i.test(name) && !/\b(qx-ribbonbar-item|qx-toolbar-button)\b/i.test(className)) {
+				return false;
+			}
+
+			dom.removeAttribute("role");
+			dom.removeAttribute("aria-label");
+			dom.removeAttribute("aria-labelledby");
+			dom.setAttribute("aria-hidden", "true");
+			dom.style.pointerEvents = "none";
+			return true;
+		}
+
+		function cleanupNestedButtonRoles(rootEl) {
+			if (!rootEl) return { touched: 0 };
+
+			let touched = 0;
+			const cap = 400;
+			const nestedButtons = rootEl.querySelectorAll('[role="button"] [role="button"]');
+			for (const nestedButton of nestedButtons) {
+				if (touched >= cap) break;
+				if (!nestedButton || nestedButton.nodeType !== 1) continue;
+
+				const parentButton = nestedButton.parentElement?.closest?.('[role="button"]');
+				if (!parentButton || parentButton === nestedButton) continue;
+
+				const name = nestedButton.getAttribute("name") || "";
+				const className = typeof nestedButton.className === "string" ? nestedButton.className : "";
+				const nestedText = normalizeString(nestedButton.innerText || nestedButton.textContent);
+				const parentText = normalizeString(parentButton.innerText || parentButton.textContent);
+				const nestedAria = normalizeString(nestedButton.getAttribute("aria-label"));
+				const parentAria = normalizeString(parentButton.getAttribute("aria-label"));
+				const hasMatchingLabel =
+					(nestedText && (nestedText === parentText || nestedText === parentAria)) ||
+					(nestedAria && (nestedAria === parentAria || nestedAria === parentText));
+
+				if (
+					!/^(button|icon|label)$/i.test(name) &&
+					!/\b(qx-ribbonbar-item|qx-toolbar-button)\b/i.test(className) &&
+					!hasMatchingLabel
+				) {
+					continue;
+				}
+
+				nestedButton.removeAttribute("role");
+				nestedButton.removeAttribute("aria-label");
+				nestedButton.removeAttribute("aria-labelledby");
+				nestedButton.setAttribute("aria-hidden", "true");
+				nestedButton.style.pointerEvents = "none";
+				touched++;
+			}
+
+			return { touched };
+		}
+
 		function applyRoleAndLabel(widget, dom, className) {
 			const expected = expectedRoleFor(className, widget, dom);
 			if (!expected) return false;
@@ -499,6 +646,14 @@
 			const expectedRole = expected;
 			const current = dom.getAttribute("role");
 			const roleWasMissing = !current;
+
+			if (expectedRole === "button" && suppressNestedButtonRole(dom)) {
+				return true;
+			}
+
+			if (expectedRole === "button" && applyDelegatedButtonRole(widget, dom)) {
+				return true;
+			}
 
 			if (expectedRole === "button" && shouldDelegateButtonRoleToChild(dom)) {
 				if (current === "button") {
@@ -570,7 +725,10 @@
 					!dom.hasAttribute("aria-labelledby")
 				) {
 					labelSet = inferLabel(widget, dom);
-					if (labelSet) dom.setAttribute("aria-label", labelSet);
+					const label = expectedRole === "button"
+						? withActionAliases(labelSet, widget, dom)
+						: labelSet;
+					if (label) dom.setAttribute("aria-label", label);
 				}
 			}
 
@@ -715,6 +873,12 @@
 				// ignore
 			}
 
+			try {
+				cleanupNestedButtonRoles(document.body || document.documentElement);
+			} catch {
+				// ignore
+			}
+
 			let namePatched = null;
 			try {
 				namePatched = patchNameAttributes(document.body || document.documentElement);
@@ -850,7 +1014,9 @@
 					(!el.hasAttribute("aria-label") || isLowValueLabel(el.getAttribute("aria-label"))) &&
 					!el.hasAttribute("aria-labelledby")
 				) {
-					const label = inferLabel(widget, el);
+					const label = role === "button"
+						? withActionAliases(inferLabel(widget, el), widget, el)
+						: inferLabel(widget, el);
 					if (label) el.setAttribute("aria-label", label);
 				}
 
@@ -877,6 +1043,22 @@
 				const role = expectedRoleFor(className, widget, el);
 				if (!role || role !== "button") continue;
 
+				if (suppressNestedButtonRole(el)) {
+					touched++;
+					continue;
+				}
+
+				const label = firstMeaningfulString(
+					tryCall(widget, "getToolTipText"),
+					tryCall(widget, "getText"),
+					tryCall(widget, "getLabel"),
+					el.getAttribute("name")
+				);
+				if (applyDelegatedButtonRole(widget, el, label)) {
+					touched++;
+					continue;
+				}
+
 				if (el.getAttribute("role") !== role) {
 					el.setAttribute("role", role);
 					touched++;
@@ -886,14 +1068,9 @@
 					(!el.hasAttribute("aria-label") || isLowValueLabel(el.getAttribute("aria-label"))) &&
 					!el.hasAttribute("aria-labelledby")
 				) {
-					const label = firstMeaningfulString(
-						tryCall(widget, "getToolTipText"),
-						tryCall(widget, "getText"),
-						tryCall(widget, "getLabel"),
-						el.getAttribute("name")
-					);
-					if (label) {
-						el.setAttribute("aria-label", label);
+					const aliasedLabel = withActionAliases(label, widget, el);
+					if (aliasedLabel) {
+						el.setAttribute("aria-label", aliasedLabel);
 						touched++;
 					}
 				}
@@ -1404,8 +1581,43 @@
 		return list;
 	}
 
+	function hasExplicitComponentTarget(input) {
+		return typeof input === "string"
+			|| Boolean(input && typeof input === "object" && (
+				input.id
+				|| input.ariaLabel
+				|| input.selector
+				|| input.name
+				|| input.testId
+				|| input.testID
+			));
+	}
+
+	function isDataGridComponent(component) {
+		if (!component) {
+			return false;
+		}
+
+		const className = getClassName(component);
+		const looksLikeGrid = className.indexOf("DataGrid") > -1;
+		const hasGridApi =
+			typeof component.scrollCellVisible === "function"
+			&& typeof component.setFocusedCell === "function"
+			&& typeof component.getRowCount === "function";
+
+		return looksLikeGrid || hasGridApi;
+	}
+
 	function resolveDataGrid(input) {
 		const core = getWisejCore();
+		if (!hasExplicitComponentTarget(input)) {
+			const inferred = inferDataGridFromLookup(core, input);
+			if (inferred) {
+				return inferred.grid;
+			}
+			throw new Error("Missing DataGrid target. Provide id, ariaLabel, selector, or row text that appears in one visible grid.");
+		}
+
 		const target = resolveComponentId(input);
 		const grid = resolveComponent(core, target);
 
@@ -1413,14 +1625,7 @@
 			throw new Error(`Component not found: ${target}`);
 		}
 
-		const className = getClassName(grid);
-		const looksLikeGrid = className.indexOf("DataGrid") > -1;
-		const hasGridApi =
-			typeof grid.scrollCellVisible === "function"
-			&& typeof grid.setFocusedCell === "function"
-			&& typeof grid.getRowCount === "function";
-
-		if (!looksLikeGrid && !hasGridApi) {
+		if (!isDataGridComponent(grid)) {
 			throw new Error(`Component ${target} is not a Wisej DataGrid.`);
 		}
 
@@ -1767,6 +1972,61 @@
 		};
 	}
 
+	function getComponentClickTarget(component) {
+		const dom = getWidgetDomElement(component);
+		if (!dom) {
+			return null;
+		}
+
+		const selectors = [
+			"[role='button']",
+			"button",
+			"a[href]",
+			"input[type='button']",
+			"input[type='submit']",
+			"[name='button']",
+			"[class*='button']"
+		];
+
+		if (getElementClickRect(dom)) {
+			return dom;
+		}
+
+		for (const selector of selectors) {
+			const candidate = dom.matches?.(selector) ? dom : dom.querySelector?.(selector);
+			if (getElementClickRect(candidate)) {
+				return candidate;
+			}
+		}
+
+		return null;
+	}
+
+	async function clickComponent(component) {
+		const target = getComponentClickTarget(component);
+		if (!target) {
+			throw new Error("Unable to find a visible click target for the Wisej component.");
+		}
+
+		const clicked = dispatchClick(target);
+		let executed = false;
+		if (!clicked && typeof component?.execute === "function") {
+			component.execute();
+			executed = true;
+		}
+
+		await flushUi(3);
+		await wait(100);
+
+		return {
+			id: callWidgetMethod(component, "getId") || null,
+			className: getClassName(component),
+			clicked,
+			executed,
+			text: getNodeTextValue(target) || getDomDisplayedText(target) || getDomDisplayedText(getWidgetDomElement(component))
+		};
+	}
+
 	function getComboItems(combo, input = {}) {
 		const offset = Number.isInteger(input.offset) && input.offset > 0 ? input.offset : 0;
 		const limit = Number.isInteger(input.limit)
@@ -2042,6 +2302,38 @@
 		return String(value);
 	}
 
+	function isUsefulDataGridCellText(text) {
+		const normalized = normalizeLookupText(text);
+		return Boolean(normalized && normalized !== "[object object]" && normalized !== "-");
+	}
+
+	function getPreferredDataGridColumnForRow(grid, model, row, columnCount) {
+		const columns = getDataGridColumns(grid, model);
+		const candidates = [];
+
+		for (let col = 0; col < columnCount; col++) {
+			const text = getGridCellText(model.getValue(col, row));
+			if (!isUsefulDataGridCellText(text)) {
+				continue;
+			}
+
+			const column = columns[col] || {};
+			const hasColumnIdentity = isUsefulDataGridCellText(column.name) || isUsefulDataGridCellText(column.id);
+			const normalized = normalizeLookupText(text);
+			candidates.push({
+				col,
+				text,
+				score:
+					(hasColumnIdentity ? 0 : 1000) +
+					(normalized.length <= 1 ? 100 : 0) +
+					col
+			});
+		}
+
+		candidates.sort((a, b) => a.score - b.score);
+		return candidates[0] || { col: 0, text: getGridCellText(model.getValue(0, row)) };
+	}
+
 	function findDataGridCellByText(grid, text, exact, columns) {
 		if (typeof text !== "string" || text.length === 0) {
 			throw new Error("Parameter 'text' must be a non-empty string.");
@@ -2078,6 +2370,118 @@
 		}
 
 		return null;
+	}
+
+	function getDataGridLookupText(input = {}) {
+		for (const key of ["text", "value", "rowText", "cellText"]) {
+			const value = input[key];
+			if (typeof value === "string" && value.trim().length > 0) {
+				return value;
+			}
+		}
+		return null;
+	}
+
+	function getDataGridSearchColumns(input = {}) {
+		return Array.isArray(input.columns)
+			? input.columns
+			: (Number.isInteger(input.column) ? [input.column] : null);
+	}
+
+	function findDataGridCellMatchForInput(grid, input = {}) {
+		const text = getDataGridLookupText(input);
+		if (!text) {
+			return null;
+		}
+
+		const exact = input.exact !== false;
+		const columns = getDataGridSearchColumns(input);
+		let match = findDataGridCellByText(grid, text, exact, columns);
+		if (!match && columns && columns.length > 0) {
+			match = findDataGridCellByText(grid, text, exact, null);
+		}
+		if (!match && exact) {
+			match = findDataGridCellByText(grid, text, false, columns);
+			if (!match && columns && columns.length > 0) {
+				match = findDataGridCellByText(grid, text, false, null);
+			}
+		}
+
+		return match;
+	}
+
+	function getVisibleDataGridCandidates(core) {
+		const candidates = [];
+		const seen = new Set();
+		const elements = querySelectorElements("*");
+
+		for (const element of elements) {
+			const grid = resolveComponentFromElement(core, element);
+			if (!isDataGridComponent(grid) || seen.has(grid)) {
+				continue;
+			}
+
+			const root = getWidgetDomElement(grid) || element;
+			const rect = getElementClickRect(root) || getElementClickRect(element);
+			if (!rect) {
+				continue;
+			}
+
+			seen.add(grid);
+			candidates.push({ grid, root, rect });
+		}
+
+		return candidates;
+	}
+
+	function scoreInferredDataGrid(grid, match, rect, input = {}) {
+		const model = getDataGridTableModel(grid);
+		const columns = getDataGridColumns(grid, model);
+		const columnText = normalizeLookupText(columns.map((column) => `${column.name || ""} ${column.id || ""}`).join(" "));
+		const requestedLabel = normalizeLookupText(input.gridLabel || input.label || input.header || input.columnName);
+		let score = columns.length * 100;
+
+		if (requestedLabel && columnText.includes(requestedLabel)) {
+			score -= 5000;
+		}
+		if (columnText.includes("full name")) {
+			score -= 1000;
+		}
+		if (match && Number.isInteger(match.col)) {
+			score += match.col;
+		}
+		if (rect) {
+			score += Math.max(0, Math.round(rect.width * rect.height / 100000));
+		}
+
+		return score;
+	}
+
+	function inferDataGridFromLookup(core, input = {}) {
+		const candidates = getVisibleDataGridCandidates(core);
+		const text = getDataGridLookupText(input);
+		if (!text) {
+			return candidates.length === 1 ? { grid: candidates[0].grid, inferred: true } : null;
+		}
+
+		const matches = [];
+		for (const candidate of candidates) {
+			try {
+				const match = findDataGridCellMatchForInput(candidate.grid, input);
+				if (match) {
+					matches.push({
+						...candidate,
+						match,
+						score: scoreInferredDataGrid(candidate.grid, match, candidate.rect, input)
+					});
+				}
+			} catch {
+				// Keep scanning: hidden or partially initialized grids can throw while the active grid is usable.
+			}
+		}
+
+		matches.sort((a, b) => a.score - b.score);
+		return matches[0] ? { grid: matches[0].grid, match: matches[0].match, inferred: true } : null;
 	}
 
 	function getDataGridRows(grid, input = {}) {
@@ -2139,23 +2543,22 @@
 				throw new Error(`Row ${input.row} is outside the DataGrid row range.`);
 			}
 
-			const col = Number.isInteger(input.col) && input.col >= 0 && input.col < columnCount
+			const requestedCol = Number.isInteger(input.col)
 				? input.col
-				: 0;
+				: (Number.isInteger(input.column) ? input.column : null);
+			const preferred = requestedCol != null && requestedCol >= 0 && requestedCol < columnCount
+				? { col: requestedCol, text: getGridCellText(model.getValue(requestedCol, input.row)) }
+				: getPreferredDataGridColumnForRow(grid, model, input.row, columnCount);
 			return {
 				row: input.row,
-				col,
-				text: getGridCellText(model.getValue(col, input.row))
+				col: preferred.col,
+				text: preferred.text
 			};
 		}
 
-		const exact = input.exact !== false;
-		const columns = Array.isArray(input.columns)
-			? input.columns
-			: (Number.isInteger(input.column) ? [input.column] : null);
-		const match = findDataGridCellByText(grid, input.text, exact, columns);
+		const match = findDataGridCellMatchForInput(grid, input);
 		if (!match) {
-			throw new Error(`No DataGrid cell matched text: ${input.text}`);
+			throw new Error(`No DataGrid cell matched text: ${getDataGridLookupText(input)}`);
 		}
 
 		return match;
@@ -2783,6 +3186,16 @@
 		return combo.getSelectedIndex() === index;
 	}
 
+	function closeCombo(combo) {
+		if (typeof combo?.close === "function") {
+			try {
+				combo.close();
+			} catch {
+				// ignore: best-effort cleanup for candidate scanning.
+			}
+		}
+	}
+
 	async function ensureComboOpened(combo, timeoutMs) {
 		if (typeof combo?.open === "function") {
 			combo.open();
@@ -2983,6 +3396,101 @@
 		};
 	}
 
+	async function trySelectComboItem(combo, lookup, options) {
+		await ensureComboOpened(combo, options.timeoutMs);
+
+		const list = resolveComboDropDownList(combo);
+		if (list && typeof list.getModel === "function" && isListSelectionControl(list)) {
+			const listResult = await selectComboItemFromList(combo, list, lookup, options);
+			if (listResult) {
+				return listResult;
+			}
+		}
+
+		const grid = resolveComboDropDownGrid(combo);
+		if (grid) {
+			const gridResult = await selectComboItemFromGrid(combo, grid, lookup, options);
+			if (gridResult) {
+				return gridResult;
+			}
+		}
+
+		const domResult = await selectComboItemFromDom(combo, lookup, options, list, grid);
+		if (domResult) {
+			return domResult;
+		}
+
+		closeCombo(combo);
+		return null;
+	}
+
+	function getVisibleComboBoxCandidates(core) {
+		const candidates = [];
+		const seen = new Set();
+		const elements = querySelectorElements("*");
+
+		for (const element of elements) {
+			const combo = resolveComponentFromElement(core, element);
+			if (!componentLooksLikeComboBox(combo) || seen.has(combo)) {
+				continue;
+			}
+
+			const root = getWidgetDomElement(combo) || element;
+			const rect = getElementClickRect(root) || getElementClickRect(element);
+			if (!rect) {
+				continue;
+			}
+
+			seen.add(combo);
+			candidates.push({ combo, root, rect });
+		}
+
+		return candidates;
+	}
+
+	function scoreInferredComboBox(candidate, lookup = {}) {
+		const requestedLabel = normalizeLookupText(
+			lookup.ariaLabel || lookup.name || lookup.label || lookup.header || lookup.selector
+		);
+		const rootText = normalizeLookupText(
+			getDomDisplayedText(candidate.root)
+			|| getDomDisplayedText(candidate.root?.parentElement)
+			|| getComboDisplayText(candidate.combo)
+		);
+		let score = 0;
+
+		if (requestedLabel && rootText.includes(requestedLabel)) {
+			score -= 1000;
+		}
+		if (candidate.rect) {
+			score += Math.round(candidate.rect.y);
+			score += Math.round(candidate.rect.x / 10);
+		}
+
+		return score;
+	}
+
+	async function selectComboItemFromVisibleCombos(lookup, options, skipCombo = null) {
+		const core = getWisejCore();
+		const candidates = getVisibleComboBoxCandidates(core)
+			.filter((candidate) => candidate.combo !== skipCombo)
+			.map((candidate) => ({ ...candidate, score: scoreInferredComboBox(candidate, lookup) }))
+			.sort((a, b) => a.score - b.score);
+
+		for (const candidate of candidates) {
+			try {
+				const result = await trySelectComboItem(candidate.combo, lookup, options);
+				if (result) {
+					return { ...result, inferred: true };
+				}
+			} catch {
+				closeCombo(candidate.combo);
+			}
+		}
+
+		return null;
+	}
+
 	async function findComboItemClickTarget(combo, lookup, options) {
 		await ensureComboOpened(combo, options.timeoutMs);
 
@@ -3082,7 +3590,7 @@
 			? [String(target), ...buildTargetSelectors(target)]
 			: buildTargetSelectors(target);
 		for (const selector of selectors) {
-			const elements = querySelectorElements(selector);
+			const elements = orderElementsByVisibility(querySelectorElements(selector));
 			if (!elements.length) {
 				continue;
 			}
@@ -3123,6 +3631,14 @@
 			return String(input.ariaLabel);
 		}
 
+		if (input.name) {
+			return String(input.name);
+		}
+
+		if (input.testId || input.testID) {
+			return String(input.testId || input.testID);
+		}
+
 		if (input.selector) {
 			return String(input.selector).trim();
 		}
@@ -3158,7 +3674,7 @@
 		}
 
 		try {
-			return doc.querySelector(selector);
+			return orderElementsByVisibility(Array.from(doc.querySelectorAll(selector)))[0] || null;
 		}
 		catch {
 			return null;
@@ -3178,6 +3694,37 @@
 		catch {
 			return [];
 		}
+	}
+
+	function orderElementsByVisibility(elements) {
+		return Array.from(elements || []).sort((left, right) => {
+			const leftVisible = isElementVisible(left) ? 1 : 0;
+			const rightVisible = isElementVisible(right) ? 1 : 0;
+			return rightVisible - leftVisible;
+		});
+	}
+
+	function isElementVisible(element) {
+		if (!element || typeof element.getBoundingClientRect !== "function") {
+			return false;
+		}
+
+		const rect = element.getBoundingClientRect();
+		if (rect.width <= 0 || rect.height <= 0) {
+			return false;
+		}
+
+		const view = element.ownerDocument?.defaultView || globalThis;
+		let current = element;
+		while (current && current.nodeType === 1) {
+			const style = view.getComputedStyle?.(current);
+			if (style && (style.display === "none" || style.visibility === "hidden" || style.opacity === "0")) {
+				return false;
+			}
+			current = current.parentElement;
+		}
+
+		return true;
 	}
 
 	function buildTargetSelectors(target) {
@@ -3437,7 +3984,11 @@
 			"select",
 			"[contenteditable='true']"
 		].join(",");
-		const elements = Array.from(root.querySelectorAll(selector));
+		const rootElement = root.nodeType === 1 ? root : null;
+		const elements = [
+			...(rootElement?.matches?.(selector) ? [rootElement] : []),
+			...Array.from(root.querySelectorAll(selector))
+		];
 		const seen = new Set();
 		const items = [];
 
@@ -3584,6 +4135,10 @@
 			return getComponentValueInfo(resolveAnyComponent(input));
 		},
 
+		async componentClick(input = {}) {
+			return clickComponent(resolveAnyComponent(input));
+		},
+
 		treeGetItems(input = {}) {
 			const tree = resolveTreeControl(input);
 			return collectTreeItems(tree, input);
@@ -3655,32 +4210,30 @@
 				throw new Error("Parameter 'text' must be a non-empty string.");
 			}
 
-			const combo = resolveComboBox(lookup);
 			const options = {
 				exact: lookup.exact !== false,
 				timeoutMs: Number.isFinite(lookup.timeoutMs) ? lookup.timeoutMs : 3000,
 				columns: Array.isArray(lookup.columns) ? lookup.columns : (Number.isInteger(lookup.column) ? [lookup.column] : null)
 			};
 
-			await ensureComboOpened(combo, options.timeoutMs);
-
-			const list = resolveComboDropDownList(combo);
-			if (list && typeof list.getModel === "function" && isListSelectionControl(list)) {
-				const listResult = await selectComboItemFromList(combo, list, lookup, options);
-				if (listResult) {
-					return listResult;
+			let combo = null;
+			let lastError = null;
+			try {
+				combo = resolveComboBox(lookup);
+				const result = await trySelectComboItem(combo, lookup, options);
+				if (result) {
+					return result;
 				}
+			} catch (error) {
+				lastError = error;
 			}
 
-			const grid = resolveComboDropDownGrid(combo);
-			if (grid) {
-				const gridResult = await selectComboItemFromGrid(combo, grid, lookup, options);
-				if (gridResult) {
-					return gridResult;
-				}
+			const inferredResult = await selectComboItemFromVisibleCombos(lookup, options, combo);
+			if (inferredResult) {
+				return inferredResult;
 			}
 
-			throw new Error(`No combobox item matched text: ${lookup.text}`);
+			throw new Error(lastError?.message || `No combobox item matched text: ${lookup.text}`);
 		},
 
 		async comboboxFindItemTarget(input = {}) {
