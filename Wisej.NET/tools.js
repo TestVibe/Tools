@@ -27,6 +27,28 @@ async function invokeWisejHelper(helperName, input) {
 	);
 }
 
+function normalizeLookupText(value) {
+	return String(value == null ? "" : value)
+		.trim()
+		.replace(/\s+/g, " ")
+		.toLowerCase();
+}
+
+function comboboxSelectionMatches(result, expectedText) {
+	const expected = normalizeLookupText(expectedText);
+	if (!expected) {
+		return true;
+	}
+
+	for (const candidate of [result?.value, result?.displayText, result?.text]) {
+		if (normalizeLookupText(candidate) === expected) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //#Example=Open ComboBox by id: { id: "luConfirmedFilter" }.
 //#Example=Open ComboBox by selector: { selector: "[aria-label=\"luConfirmedFilter\"]" }.
 //#Summary=Open ComboBox
@@ -200,45 +222,61 @@ async function comboboxGetSelection(input = {}) {
 //#Params=id,selector,ariaLabel,text,exact,column,columns,timeoutMs
 async function comboboxSelectItem(input = {}) {
 	const { page, input: payload } = resolvePageBoundInput(input);
+	let helperError = null;
 	try {
-		return await invokeWisejHelper("comboboxSelectItem", input);
-	}
-	catch (error) {
-		const target = await page.evaluate(
-			(payload) => {
-				const helpers = globalThis.__wisejNetTools;
-				if (!helpers || typeof helpers.comboboxFindItemTarget !== "function") {
-					throw new Error("Browser helper not found: comboboxFindItemTarget. Ensure init-script.js is loaded before tool calls.");
-				}
-				return helpers.comboboxFindItemTarget(payload);
-			},
-			payload
-		);
-
-		if (!target?.rect) {
-			throw error;
+		const result = await invokeWisejHelper("comboboxSelectItem", input);
+		if (comboboxSelectionMatches(result, payload.text)) {
+			return result;
 		}
 
-		await page.mouse.click(target.rect.centerX, target.rect.centerY);
-		await page.waitForTimeout(150);
-
-		const valueInfo = await page.evaluate(
-			(payload) => {
-				const helpers = globalThis.__wisejNetTools;
-				if (!helpers || typeof helpers.comboboxGetValue !== "function") {
-					throw new Error("Browser helper not found: comboboxGetValue. Ensure init-script.js is loaded before tool calls.");
-				}
-				return helpers.comboboxGetValue(payload);
-			},
-			payload
+		helperError = new Error(
+			`Wisej helper did not commit combo selection '${payload.text ?? ""}'.`
 		);
-
-		return {
-			...target,
-			strategy: `${target.strategy}-trusted-click`,
-			...valueInfo
-		};
 	}
+	catch (error) {
+		helperError = error;
+	}
+
+	const target = await page.evaluate(
+		(payload) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.comboboxFindItemTarget !== "function") {
+				throw new Error("Browser helper not found: comboboxFindItemTarget. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.comboboxFindItemTarget(payload);
+		},
+		payload
+	);
+
+	if (!target?.rect) {
+		throw helperError;
+	}
+
+	await page.mouse.click(target.rect.centerX, target.rect.centerY);
+	await page.waitForTimeout(150);
+
+	const valueInfo = await page.evaluate(
+		(payload) => {
+			const helpers = globalThis.__wisejNetTools;
+			if (!helpers || typeof helpers.comboboxGetValue !== "function") {
+				throw new Error("Browser helper not found: comboboxGetValue. Ensure init-script.js is loaded before tool calls.");
+			}
+			return helpers.comboboxGetValue(payload);
+		},
+		payload
+	);
+
+	const trustedResult = {
+		...target,
+		strategy: `${target.strategy}-trusted-click`,
+		...valueInfo
+	};
+
+	if (!comboboxSelectionMatches(trustedResult, payload.text)) {
+		throw helperError;
+	}
+
+	return trustedResult;
 }
 
 //#Example=Find ComboBox item click target: { id: "luRotaGroupFilter", text: "Cyclical testing 9" }.

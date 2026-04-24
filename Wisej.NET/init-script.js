@@ -2012,9 +2012,64 @@
 		return false;
 	}
 
+	function getLookupTextSource(value, seen = new Set()) {
+		if (value == null) {
+			return null;
+		}
+
+		if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+			return String(value);
+		}
+
+		if (typeof value !== "object") {
+			return null;
+		}
+
+		if (seen.has(value)) {
+			return null;
+		}
+		seen.add(value);
+
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				const candidate = getLookupTextSource(item, seen);
+				if (candidate != null) {
+					return candidate;
+				}
+			}
+			return null;
+		}
+
+		for (const key of ["label", "text", "name", "caption", "displayText", "displayValue", "value"]) {
+			const candidate = getLookupTextSource(value[key], seen);
+			if (candidate != null) {
+				return candidate;
+			}
+		}
+
+		try {
+			if (typeof value.toString === "function" && value.toString !== Object.prototype.toString) {
+				const candidate = value.toString();
+				if (candidate && candidate !== "[object Object]") {
+					return candidate;
+				}
+			}
+		} catch {
+			// ignore: opaque values should behave like empty lookup text.
+		}
+
+		return null;
+	}
+
 	function getLookupTextValue(value) {
-		return hasLookupText(value)
-			? String(value).trim().replace(/\s+/g, " ")
+		const text = getLookupTextSource(value);
+		if (typeof text !== "string") {
+			return null;
+		}
+
+		const normalized = text.trim().replace(/\s+/g, " ");
+		return normalized && normalized.toLowerCase() !== "[object object]"
+			? normalized
 			: null;
 	}
 
@@ -2118,13 +2173,14 @@
 
 	function getComboValueInfo(combo) {
 		const rawValue = typeof combo?.getValue === "function" ? combo.getValue() : null;
+		const rawText = getLookupTextValue(rawValue);
 		const displayText = getComboDisplayText(combo);
 
 		return {
 			id: combo.getId(),
-			rawValue,
+			rawValue: rawText || rawValue,
 			displayText,
-			value: hasLookupText(rawValue) ? rawValue : displayText,
+			value: displayText || rawText,
 			selectedIndex: typeof combo?.getSelectedIndex === "function" ? combo.getSelectedIndex() : null
 		};
 	}
@@ -2301,14 +2357,14 @@
 	}
 
 	function normalizeLookupText(value) {
-		return String(value == null ? "" : value)
+		return String(getLookupTextValue(value) ?? "")
 			.trim()
 			.replace(/\s+/g, " ")
 			.toLowerCase();
 	}
 
 	function hasLookupText(value) {
-		return normalizeLookupText(value).length > 0;
+		return getLookupTextValue(value) != null;
 	}
 
 	function matchesLookupText(candidate, expected, exact) {
@@ -3246,6 +3302,30 @@
 			|| null;
 	}
 
+	function preferDataGridRowClickElement(element) {
+		if (!element) {
+			return null;
+		}
+
+		const row = typeof element.closest === "function" ? element.closest("[role='row']") : null;
+		return getElementClickRect(row) ? row : element;
+	}
+
+	function findDataGridClickElement(root, text) {
+		const focused = preferDataGridRowClickElement(findFocusedDataGridCellElement(root, text));
+		if (getElementClickRect(focused)) {
+			return focused;
+		}
+
+		const exact = preferDataGridRowClickElement(findClickableTextElement(root, text, true));
+		if (getElementClickRect(exact)) {
+			return exact;
+		}
+
+		const fallback = preferDataGridRowClickElement(findClickableTextElement(root, text, false));
+		return getElementClickRect(fallback) ? fallback : null;
+	}
+
 	function dispatchClick(element) {
 		if (!element || typeof element.dispatchEvent !== "function") {
 			return false;
@@ -3397,6 +3477,41 @@
 		}, { timeoutMs, intervalMs: 25 });
 	}
 
+	function comboGridHasLookupData(grid) {
+		const model = getDataGridTableModel(grid);
+		const rowCount = getDataGridRowCount(grid, model);
+		const columnCount = getDataGridColumnCount(grid, model);
+		if (!Number.isInteger(rowCount) || rowCount <= 0 || !Number.isInteger(columnCount) || columnCount <= 0) {
+			return false;
+		}
+
+		const maxRows = Math.min(rowCount, 200);
+		for (let row = 0; row < maxRows; row++) {
+			for (let col = 0; col < columnCount; col++) {
+				if (hasLookupText(getGridCellText(model.getValue(col, row)))) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	async function waitForComboGridLookupData(grid, timeoutMs) {
+		if (!grid) {
+			return false;
+		}
+
+		const ready = await waitForCondition(
+			() => comboGridHasLookupData(grid),
+			{ timeoutMs, intervalMs: 25 }
+		);
+		if (ready) {
+			await flushUi();
+		}
+		return Boolean(ready);
+	}
+
 	async function selectComboItemFromList(combo, list, lookup, options) {
 		const match = findListIndexByLookupText(list, lookup.text, options.exact);
 		if (!match) {
@@ -3426,9 +3541,10 @@
 
 	function comboSelectionLooksCommitted(combo, expectedText, previousInfo = null) {
 		const currentInfo = getComboValueInfo(combo);
+		const hasVisibleValue = hasLookupText(currentInfo.value) || hasLookupText(currentInfo.displayText);
 		if (matchesLookupText(currentInfo.value, expectedText, true)
-			|| matchesLookupText(currentInfo.rawValue, expectedText, true)
-			|| matchesLookupText(currentInfo.displayText, expectedText, true)) {
+			|| matchesLookupText(currentInfo.displayText, expectedText, true)
+			|| (!hasVisibleValue && matchesLookupText(currentInfo.rawValue, expectedText, true))) {
 			return true;
 		}
 
@@ -3443,8 +3559,7 @@
 			return false;
 		}
 
-		return currentInfo.selectedIndex !== previousInfo.selectedIndex
-			|| normalizeLookupText(currentInfo.value) !== normalizeLookupText(previousInfo.value)
+		return normalizeLookupText(currentInfo.value) !== normalizeLookupText(previousInfo.value)
 			|| normalizeLookupText(currentInfo.rawValue) !== normalizeLookupText(previousInfo.rawValue)
 			|| normalizeLookupText(currentInfo.displayText) !== normalizeLookupText(previousInfo.displayText);
 	}
@@ -3481,6 +3596,8 @@
 	}
 
 	async function selectComboItemFromGrid(combo, grid, lookup, options) {
+		await waitForComboGridLookupData(grid, options.timeoutMs);
+
 		const columns = Array.isArray(options.columns)
 			? options.columns.filter((value) => Number.isInteger(value) && value >= 0)
 			: null;
@@ -3530,7 +3647,7 @@
 
 		for (const root of roots) {
 			const element = await waitForCondition(
-				() => findClickableTextElement(root, match.text, true) || findClickableTextElement(root, lookup.text, options.exact),
+				() => findDataGridClickElement(root, match.text) || findDataGridClickElement(root, lookup.text),
 				{ timeoutMs: options.timeoutMs, intervalMs: 25 }
 			);
 			if (!element) {
@@ -3715,6 +3832,8 @@
 			return null;
 		}
 
+		await waitForComboGridLookupData(grid, options.timeoutMs);
+
 		const columns = Array.isArray(options.columns)
 			? options.columns.filter((value) => Number.isInteger(value) && value >= 0)
 			: null;
@@ -3744,8 +3863,8 @@
 
 		const roots = getComboSearchRoots(grid, resolveComboDropDownList(combo), combo);
 		for (const root of roots) {
-			const element = findClickableTextElement(root, match.text, true)
-				|| findClickableTextElement(root, lookup.text, options.exact)
+			const element = findDataGridClickElement(root, match.text)
+				|| findDataGridClickElement(root, lookup.text)
 				|| findClickableTextElement(root, lookup.text, false);
 			const rect = getElementClickRect(element);
 			if (rect) {
@@ -4261,7 +4380,9 @@
 		comboboxGetItems: async function(input = {}) {
 			const combo = resolveComboBox(input);
 			const shouldClose = input.close !== false;
-			await ensureComboOpened(combo, Number.isFinite(input.timeoutMs) ? input.timeoutMs : 2000);
+			const timeoutMs = Number.isFinite(input.timeoutMs) ? input.timeoutMs : 2000;
+			await ensureComboOpened(combo, timeoutMs);
+			await waitForComboGridLookupData(resolveComboDropDownGrid(combo), timeoutMs);
 			await flushUi(2);
 			const result = getComboItems(combo, input);
 			if (shouldClose && typeof combo?.close === "function") {
